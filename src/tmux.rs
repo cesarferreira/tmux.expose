@@ -8,6 +8,12 @@ const FIELD_SEPARATOR: char = '\u{1f}';
 const SESSION_FORMAT: &str = "#{session_id}\u{1f}#{session_name}\u{1f}#{session_attached}\u{1f}#{session_windows}\u{1f}#{session_created}\u{1f}#{session_activity}";
 
 pub fn list_sessions() -> Result<Vec<Session>> {
+    list_sessions_skipping_preview_for(None)
+}
+
+pub fn list_sessions_skipping_preview_for(
+    current_session_id: Option<&str>,
+) -> Result<Vec<Session>> {
     let output = Command::new("tmux")
         .args(["list-sessions", "-F", SESSION_FORMAT])
         .output()
@@ -22,6 +28,12 @@ pub fn list_sessions() -> Result<Vec<Session>> {
 
     for session in &mut sessions {
         session.current_window = current_window_name(&session.id).unwrap_or(None);
+        if !should_capture_preview(&session.id, current_session_id) {
+            session.preview.clear();
+            session.preview_error = Some("Current session preview disabled".to_string());
+            continue;
+        }
+
         match capture_session_preview(&session.id, 200) {
             Ok(preview) => {
                 session.preview = preview;
@@ -49,6 +61,20 @@ pub fn current_session_name() -> Result<Option<String>> {
 
     let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
     Ok((!name.is_empty()).then_some(name))
+}
+
+pub fn current_session_id() -> Result<Option<String>> {
+    let output = Command::new("tmux")
+        .args(["display-message", "-p", "#{session_id}"])
+        .output()
+        .context("failed to run tmux display-message")?;
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    let id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok((!id.is_empty()).then_some(id))
 }
 
 pub fn current_window_name(session_target: &str) -> Result<Option<String>> {
@@ -155,6 +181,10 @@ fn tmux_error(message: &str, stderr: &[u8]) -> anyhow::Error {
     }
 }
 
+fn should_capture_preview(session_id: &str, current_session_id: Option<&str>) -> bool {
+    current_session_id != Some(session_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,5 +226,12 @@ mod tests {
         let preview = trim_preview("\u{1b}[31mred\u{1b}[0m plain", 5);
 
         assert_eq!(preview, vec!["\u{1b}[31mred\u{1b}[0m plain".to_string()]);
+    }
+
+    #[test]
+    fn skips_preview_capture_for_current_session() {
+        assert!(!should_capture_preview("$1", Some("$1")));
+        assert!(should_capture_preview("$2", Some("$1")));
+        assert!(should_capture_preview("$1", None));
     }
 }

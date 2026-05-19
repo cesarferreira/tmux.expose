@@ -23,7 +23,7 @@ pub struct GridLayout {
 pub fn render(
     frame: &mut Frame<'_>,
     app: &App,
-    min_card_width: u16,
+    min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) {
     let area = frame.area();
@@ -60,7 +60,7 @@ pub fn render_grid(
     frame: &mut Frame<'_>,
     app: &App,
     area: Rect,
-    min_card_width: u16,
+    min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) {
     let grid = calculate_grid(area, app.sessions.len(), min_card_width, forced_columns);
@@ -151,7 +151,7 @@ pub fn render_card(frame: &mut Frame<'_>, session: &Session, selected: bool, are
 pub fn calculate_grid(
     area: Rect,
     item_count: usize,
-    min_card_width: u16,
+    min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) -> GridLayout {
     if item_count == 0 || area.width == 0 || area.height == 0 {
@@ -162,11 +162,8 @@ pub fn calculate_grid(
         };
     }
 
-    let automatic_columns = (area.width.saturating_add(CARD_GAP)
-        / min_card_width.max(1).saturating_add(CARD_GAP))
-    .max(1) as usize;
     let columns = forced_columns
-        .unwrap_or(automatic_columns)
+        .unwrap_or_else(|| calculate_automatic_columns(area, item_count, min_card_width))
         .min(item_count)
         .min(u16::MAX as usize)
         .max(1);
@@ -203,6 +200,40 @@ pub fn calculate_grid(
         rows,
         cards,
     }
+}
+
+fn calculate_automatic_columns(
+    area: Rect,
+    item_count: usize,
+    min_card_width: Option<u16>,
+) -> usize {
+    if let Some(min_card_width) = min_card_width {
+        return (area.width.saturating_add(CARD_GAP)
+            / min_card_width.max(1).saturating_add(CARD_GAP))
+        .max(1) as usize;
+    }
+
+    (1..=item_count.min(u16::MAX as usize))
+        .min_by_key(|columns| {
+            let rows = item_count.div_ceil(*columns);
+            let card_width = area
+                .width
+                .saturating_sub(CARD_GAP.saturating_mul(columns.saturating_sub(1) as u16))
+                .checked_div(*columns as u16)
+                .unwrap_or(area.width);
+            let card_height = area
+                .height
+                .saturating_sub(CARD_GAP.saturating_mul(rows.saturating_sub(1) as u16))
+                .checked_div(rows as u16)
+                .unwrap_or(area.height);
+
+            let aspect_penalty = u32::from(card_width)
+                .saturating_mul(10)
+                .abs_diff(u32::from(card_height).saturating_mul(16));
+            let area = u32::from(card_width) * u32::from(card_height);
+            (aspect_penalty, std::cmp::Reverse(area))
+        })
+        .unwrap_or(1)
 }
 
 fn render_centered_message(frame: &mut Frame<'_>, area: Rect, message: &str) {
@@ -392,8 +423,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn grid_uses_as_many_min_width_columns_as_fit() {
-        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 6, MIN_CARD_WIDTH, None);
+    fn grid_fits_default_cards_to_available_screen_space() {
+        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 8, None, None);
+
+        assert_eq!(grid.columns, 4);
+        assert_eq!(grid.rows, 2);
+        assert_eq!(grid.cards.len(), 8);
+        assert_eq!(grid.cards[0].width, 23);
+        assert_eq!(grid.cards[0].height, 14);
+    }
+
+    #[test]
+    fn grid_keeps_wide_screens_balanced_by_default() {
+        let grid = calculate_grid(Rect::new(0, 0, 240, 60), 9, None, None);
+
+        assert_eq!(grid.columns, 5);
+        assert_eq!(grid.rows, 2);
+        assert!(grid.cards[0].width > grid.cards[0].height);
+    }
+
+    #[test]
+    fn thumbnail_width_uses_as_many_min_width_columns_as_fit() {
+        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 6, Some(MIN_CARD_WIDTH), None);
 
         assert_eq!(grid.columns, 3);
         assert_eq!(grid.rows, 2);
@@ -403,7 +454,7 @@ mod tests {
 
     #[test]
     fn grid_always_has_one_column_for_narrow_terminals() {
-        let grid = calculate_grid(Rect::new(0, 0, 20, 30), 2, MIN_CARD_WIDTH, None);
+        let grid = calculate_grid(Rect::new(0, 0, 20, 30), 2, None, None);
 
         assert_eq!(grid.columns, 1);
         assert_eq!(grid.rows, 2);
@@ -412,7 +463,7 @@ mod tests {
 
     #[test]
     fn custom_min_card_width_makes_automatic_cards_larger() {
-        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 6, 50, None);
+        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 6, Some(50), None);
 
         assert_eq!(grid.columns, 1);
         assert_eq!(grid.cards[0].width, 100);
@@ -420,7 +471,7 @@ mod tests {
 
     #[test]
     fn forced_columns_override_automatic_width_calculation() {
-        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 6, 50, Some(3));
+        let grid = calculate_grid(Rect::new(0, 0, 100, 30), 6, Some(50), Some(3));
 
         assert_eq!(grid.columns, 3);
         assert_eq!(grid.rows, 2);

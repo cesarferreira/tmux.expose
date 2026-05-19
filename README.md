@@ -22,7 +22,7 @@ Refresh interval defaults to 500ms:
 tmux-expose --refresh-interval 500
 ```
 
-Thumbnail sizing can be adjusted with the minimum thumbnail width and a forced column count:
+By default, thumbnails are sized to fit all sessions on the screen. You can override that with a minimum thumbnail width, a forced column count, or both:
 
 ```bash
 tmux-expose --thumbnail-width 48 --columns 2

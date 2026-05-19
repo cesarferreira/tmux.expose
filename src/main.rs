@@ -20,8 +20,8 @@ struct Cli {
     #[arg(long, default_value_t = 500, value_name = "MS", value_parser = clap::value_parser!(u64).range(1..))]
     refresh_interval: u64,
 
-    #[arg(long, default_value_t = ui::MIN_CARD_WIDTH, value_name = "COLS", value_parser = clap::value_parser!(u16).range(1..))]
-    thumbnail_width: u16,
+    #[arg(long, value_name = "COLS", value_parser = clap::value_parser!(u16).range(1..))]
+    thumbnail_width: Option<u16>,
 
     #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..))]
     columns: Option<u16>,
@@ -53,7 +53,8 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend).context("failed to create terminal")?;
 
     let current_session_name = tmux::current_session_name().unwrap_or(None);
-    let mut app = match tmux::list_sessions() {
+    let current_session_id = tmux::current_session_id().unwrap_or(None);
+    let mut app = match tmux::list_sessions_skipping_preview_for(current_session_id.as_deref()) {
         Ok(sessions) => App::new(sessions, current_session_name),
         Err(error) => {
             let mut app = App::new(Vec::new(), current_session_name);
@@ -112,7 +113,7 @@ fn main() -> Result<()> {
         }
 
         if last_refresh.elapsed() >= refresh_interval {
-            match tmux::list_sessions() {
+            match tmux::list_sessions_skipping_preview_for(current_session_id.as_deref()) {
                 Ok(sessions) => {
                     app.replace_sessions(sessions);
                     app.error = None;
@@ -131,7 +132,7 @@ fn main() -> Result<()> {
 fn current_columns(
     terminal: &Terminal<CrosstermBackend<io::Stdout>>,
     session_count: usize,
-    min_card_width: u16,
+    min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) -> Result<usize> {
     let area = terminal.size().context("failed to read terminal size")?;
@@ -152,10 +153,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn thumbnail_width_defaults_to_fit_screen_mode() {
+        let cli = Cli::parse_from(["tmux-expose"]);
+
+        assert_eq!(cli.thumbnail_width, None);
+    }
+
+    #[test]
     fn parses_thumbnail_width_option() {
         let cli = Cli::parse_from(["tmux-expose", "--thumbnail-width", "48"]);
 
-        assert_eq!(cli.thumbnail_width, 48);
+        assert_eq!(cli.thumbnail_width, Some(48));
     }
 
     #[test]
