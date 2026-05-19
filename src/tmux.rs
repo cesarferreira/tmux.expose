@@ -69,7 +69,7 @@ pub fn current_window_name(session_target: &str) -> Result<Option<String>> {
 pub fn capture_session_preview(session_target: &str, max_lines: usize) -> Result<Vec<String>> {
     let target = format!("{}:", session_target);
     let output = Command::new("tmux")
-        .args(["capture-pane", "-p", "-t", &target])
+        .args(["capture-pane", "-e", "-p", "-t", &target])
         .output()
         .with_context(|| format!("failed to capture pane for session '{session_target}'"))?;
 
@@ -135,7 +135,6 @@ pub fn parse_sessions(output: &str) -> Vec<Session> {
 pub fn trim_preview(output: &str, max_lines: usize) -> Vec<String> {
     let mut lines: Vec<String> = output
         .lines()
-        .map(strip_ansi)
         .map(|line| line.trim_end().to_string())
         .collect();
 
@@ -145,26 +144,6 @@ pub fn trim_preview(output: &str, max_lines: usize) -> Vec<String> {
 
     let start = lines.len().saturating_sub(max_lines);
     lines.into_iter().skip(start).collect()
-}
-
-fn strip_ansi(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\u{1b}' && chars.peek() == Some(&'[') {
-            chars.next();
-            for next in chars.by_ref() {
-                if ('@'..='~').contains(&next) {
-                    break;
-                }
-            }
-        } else {
-            result.push(ch);
-        }
-    }
-
-    result
 }
 
 fn tmux_error(message: &str, stderr: &[u8]) -> anyhow::Error {
@@ -213,9 +192,9 @@ mod tests {
     }
 
     #[test]
-    fn strips_ansi_escape_sequences_from_preview() {
+    fn preserves_ansi_escape_sequences_from_preview() {
         let preview = trim_preview("\u{1b}[31mred\u{1b}[0m plain", 5);
 
-        assert_eq!(preview, vec!["red plain".to_string()]);
+        assert_eq!(preview, vec!["\u{1b}[31mred\u{1b}[0m plain".to_string()]);
     }
 }

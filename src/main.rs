@@ -19,6 +19,12 @@ use tmux_expose::{input, model::App, tmux, ui};
 struct Cli {
     #[arg(long, default_value_t = 500, value_name = "MS", value_parser = clap::value_parser!(u64).range(1..))]
     refresh_interval: u64,
+
+    #[arg(long, default_value_t = ui::MIN_CARD_WIDTH, value_name = "COLS", value_parser = clap::value_parser!(u16).range(1..))]
+    thumbnail_width: u16,
+
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..))]
+    columns: Option<u16>,
 }
 
 struct TerminalGuard;
@@ -60,7 +66,8 @@ fn main() -> Result<()> {
     let mut last_refresh = Instant::now();
 
     loop {
-        terminal.draw(|frame| ui::render(frame, &app))?;
+        let forced_columns = cli.columns.map(usize::from);
+        terminal.draw(|frame| ui::render(frame, &app, cli.thumbnail_width, forced_columns))?;
 
         if app.should_quit {
             break;
@@ -91,7 +98,12 @@ fn main() -> Result<()> {
                 Event::Key(key)
                     if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
                 {
-                    let columns = current_columns(&terminal, app.sessions.len())?;
+                    let columns = current_columns(
+                        &terminal,
+                        app.sessions.len(),
+                        cli.thumbnail_width,
+                        forced_columns,
+                    )?;
                     input::handle_key(&mut app, key, columns);
                 }
                 Event::Resize(_, _) => {}
@@ -119,9 +131,37 @@ fn main() -> Result<()> {
 fn current_columns(
     terminal: &Terminal<CrosstermBackend<io::Stdout>>,
     session_count: usize,
+    min_card_width: u16,
+    forced_columns: Option<usize>,
 ) -> Result<usize> {
     let area = terminal.size().context("failed to read terminal size")?;
     let body_height = area.height.saturating_sub(1);
-    let grid = ui::calculate_grid(Rect::new(0, 0, area.width, body_height), session_count);
+    let grid = ui::calculate_grid(
+        Rect::new(0, 0, area.width, body_height),
+        session_count,
+        min_card_width,
+        forced_columns,
+    );
     Ok(grid.columns)
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    use super::*;
+
+    #[test]
+    fn parses_thumbnail_width_option() {
+        let cli = Cli::parse_from(["tmux-expose", "--thumbnail-width", "48"]);
+
+        assert_eq!(cli.thumbnail_width, 48);
+    }
+
+    #[test]
+    fn parses_forced_columns_option() {
+        let cli = Cli::parse_from(["tmux-expose", "--columns", "2"]);
+
+        assert_eq!(cli.columns, Some(2));
+    }
 }
