@@ -61,6 +61,7 @@ lint: fmt-check clippy
 plugin-check:
 	test -x tmux.expose.tmux
 	bash -n tmux.expose.tmux
+	bash tests/plugin_entrypoint_test.sh
 	grep -q 'width="$${width:-100%}"' tmux.expose.tmux
 	grep -q 'height="$${height:-100%}"' tmux.expose.tmux
 

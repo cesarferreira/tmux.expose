@@ -36,7 +36,7 @@ Switching tmux sessions with a list works, but it gives you names instead of con
 - **Terminal-native.** A small Rust TUI that runs inside your terminal or a tmux popup.
 - **Color-aware previews.** tmux ANSI colors are preserved in thumbnails.
 - **Fast keyboard flow.** Move with arrows or `hjkl`, switch with `Enter`, leave with `q` or `Esc`.
-- **TPM-ready.** Install it as a tmux plugin and launch with a single prefix binding.
+- **TPM-ready.** Install it as a tmux plugin and launch with `Alt+e`.
 
 ## Install
 
@@ -110,10 +110,10 @@ set -g @plugin 'cesarferreira/tmux.expose'
 
 Reload tmux config, then press `prefix + I` to install plugins.
 
-The plugin binds `prefix + E` by default:
+The plugin binds `Alt+e` by default:
 
 ```tmux
-prefix + E
+Alt+e
 ```
 
 It opens:
@@ -128,6 +128,7 @@ Customize the tmux plugin before the `@plugin` line:
 
 ```tmux
 set -g @tmux-expose-key 'E'
+set -g @tmux-expose-key-table 'prefix'
 set -g @tmux-expose-width '100%'
 set -g @tmux-expose-height '100%'
 set -g @tmux-expose-command 'tmux-expose --columns 2'
@@ -138,7 +139,7 @@ set -g @plugin 'cesarferreira/tmux.expose'
 Use a direct binding if you do not use TPM:
 
 ```tmux
-bind-key E display-popup -w 100% -h 100% -E "tmux-expose"
+bind-key -T root M-e display-popup -w 100% -h 100% -E "tmux-expose"
 ```
 
 ## macOS Gesture Integration
