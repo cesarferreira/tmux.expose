@@ -61,6 +61,8 @@ lint: fmt-check clippy
 plugin-check:
 	test -x tmux.expose.tmux
 	bash -n tmux.expose.tmux
+	grep -q 'width="$${width:-100%}"' tmux.expose.tmux
+	grep -q 'height="$${height:-100%}"' tmux.expose.tmux
 
 # Verify crates.io package
 publish-dry-run:

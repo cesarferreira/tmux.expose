@@ -70,7 +70,7 @@ tmux-expose
 Or open it in a tmux popup:
 
 ```bash
-tmux display-popup -w 95% -h 90% -E "tmux-expose"
+tmux display-popup -w 100% -h 100% -E "tmux-expose"
 ```
 
 By default, thumbnails are sized into a balanced grid that fits all sessions on screen. Override the layout when you want larger previews or a fixed grid:
@@ -119,7 +119,7 @@ prefix + E
 It opens:
 
 ```bash
-tmux display-popup -w 95% -h 90% -E "tmux-expose"
+tmux display-popup -w 100% -h 100% -E "tmux-expose"
 ```
 
 ## Configuration
@@ -128,8 +128,8 @@ Customize the tmux plugin before the `@plugin` line:
 
 ```tmux
 set -g @tmux-expose-key 'E'
-set -g @tmux-expose-width '95%'
-set -g @tmux-expose-height '90%'
+set -g @tmux-expose-width '100%'
+set -g @tmux-expose-height '100%'
 set -g @tmux-expose-command 'tmux-expose --columns 2'
 
 set -g @plugin 'cesarferreira/tmux.expose'
@@ -138,7 +138,7 @@ set -g @plugin 'cesarferreira/tmux.expose'
 Use a direct binding if you do not use TPM:
 
 ```tmux
-bind-key E display-popup -w 95% -h 90% -E "tmux-expose"
+bind-key E display-popup -w 100% -h 100% -E "tmux-expose"
 ```
 
 ## macOS Gesture Integration
@@ -146,7 +146,7 @@ bind-key E display-popup -w 95% -h 90% -E "tmux-expose"
 Use BetterTouchTool, Hammerspoon, Raycast, or another automation tool to trigger:
 
 ```bash
-tmux display-popup -w 95% -h 90% -E "tmux-expose"
+tmux display-popup -w 100% -h 100% -E "tmux-expose"
 ```
 
 The app itself is terminal-only and does not depend on macOS-specific APIs.
