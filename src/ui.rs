@@ -47,12 +47,20 @@ pub fn render(
             chunks[0],
             "No tmux sessions found.\nPress q or Esc to quit.",
         );
+    } else if app.visible_session_count() == 0 {
+        render_centered_message(frame, chunks[0], "No matching sessions");
     } else {
         render_grid(frame, app, chunks[0], min_card_width, forced_columns);
     }
 
-    let footer = Paragraph::new("↑/↓/←/→ or hjkl to move · Enter to switch · q/Esc/Ctrl-C to quit")
-        .style(Style::default().fg(Color::DarkGray));
+    let footer_text = if let Some(query) = app.search_text() {
+        format!(
+            "Search: {query} · type to filter · ↑/↓/←/→ to move · Enter to switch · Esc to clear"
+        )
+    } else {
+        "↑/↓/←/→ or hjkl to move · / search · Enter to switch · q/Esc/Ctrl-C to quit".to_string()
+    };
+    let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(footer, chunks[1]);
 }
 
@@ -63,10 +71,11 @@ pub fn render_grid(
     min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) {
-    let grid = calculate_grid(area, app.sessions.len(), min_card_width, forced_columns);
+    let sessions = app.visible_sessions();
+    let grid = calculate_grid(area, sessions.len(), min_card_width, forced_columns);
 
     for (index, card_area) in grid.cards.iter().enumerate() {
-        if let Some(session) = app.sessions.get(index) {
+        if let Some(session) = sessions.get(index) {
             render_card(frame, session, index == app.selected_index, *card_area);
         }
     }

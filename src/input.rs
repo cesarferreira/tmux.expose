@@ -3,14 +3,38 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::model::App;
 
 pub fn handle_key(app: &mut App, key: KeyEvent, columns: usize) {
+    if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        app.should_quit = true;
+        return;
+    }
+
+    if app.is_searching() {
+        handle_search_key(app, key, columns);
+        return;
+    }
+
     match (key.code, key.modifiers) {
-        (KeyCode::Char('c'), KeyModifiers::CONTROL) => app.should_quit = true,
         (KeyCode::Esc, _) | (KeyCode::Char('q'), _) => app.should_quit = true,
         (KeyCode::Enter, _) => app.should_switch = true,
+        (KeyCode::Char('/'), KeyModifiers::NONE) => app.start_search(),
         (KeyCode::Left, _) | (KeyCode::Char('h'), _) => move_left(app, columns),
         (KeyCode::Right, _) | (KeyCode::Char('l'), _) => move_right(app, columns),
         (KeyCode::Up, _) | (KeyCode::Char('k'), _) => app.move_up(columns),
         (KeyCode::Down, _) | (KeyCode::Char('j'), _) => app.move_down(columns),
+        _ => {}
+    }
+}
+
+fn handle_search_key(app: &mut App, key: KeyEvent, columns: usize) {
+    match (key.code, key.modifiers) {
+        (KeyCode::Esc, _) => app.clear_search(),
+        (KeyCode::Enter, _) => app.should_switch = true,
+        (KeyCode::Backspace, _) => app.pop_search_char(),
+        (KeyCode::Left, _) => move_left(app, columns),
+        (KeyCode::Right, _) => move_right(app, columns),
+        (KeyCode::Up, _) => app.move_up(columns),
+        (KeyCode::Down, _) => app.move_down(columns),
+        (KeyCode::Char(ch), KeyModifiers::NONE | KeyModifiers::SHIFT) => app.push_search_char(ch),
         _ => {}
     }
 }
@@ -108,6 +132,53 @@ mod tests {
         );
 
         assert!(app.should_quit);
+    }
+
+    #[test]
+    fn slash_enters_search_mode() {
+        let mut app = App::new(vec![session("one")], None);
+
+        handle_key(&mut app, key(KeyCode::Char('/')), 1);
+
+        assert!(app.is_searching());
+        assert_eq!(app.search_text(), Some(""));
+    }
+
+    #[test]
+    fn characters_filter_sessions_while_searching() {
+        let mut app = App::new(
+            vec![session("backend"), session("frontend"), session("database")],
+            None,
+        );
+
+        handle_key(&mut app, key(KeyCode::Char('/')), 1);
+        handle_key(&mut app, key(KeyCode::Char('f')), 1);
+
+        assert_eq!(app.search_text(), Some("f"));
+        assert_eq!(app.visible_session_count(), 1);
+        assert_eq!(app.selected_session().unwrap().name, "frontend");
+    }
+
+    #[test]
+    fn esc_clears_search_before_quitting() {
+        let mut app = App::new(vec![session("one")], None);
+
+        handle_key(&mut app, key(KeyCode::Char('/')), 1);
+        handle_key(&mut app, key(KeyCode::Esc), 1);
+
+        assert!(!app.is_searching());
+        assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn backspace_edits_search_query() {
+        let mut app = App::new(vec![session("frontend")], None);
+
+        handle_key(&mut app, key(KeyCode::Char('/')), 1);
+        handle_key(&mut app, key(KeyCode::Char('f')), 1);
+        handle_key(&mut app, key(KeyCode::Backspace), 1);
+
+        assert_eq!(app.search_text(), Some(""));
     }
 
     #[test]

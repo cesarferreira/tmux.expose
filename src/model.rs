@@ -18,6 +18,7 @@ pub struct App {
     pub should_quit: bool,
     pub should_switch: bool,
     pub error: Option<String>,
+    search_query: Option<String>,
 }
 
 impl App {
@@ -34,29 +35,77 @@ impl App {
             should_quit: false,
             should_switch: false,
             error: None,
+            search_query: None,
         }
     }
 
     pub fn selected_session(&self) -> Option<&Session> {
-        self.sessions.get(self.selected_index)
+        self.visible_sessions().get(self.selected_index).copied()
+    }
+
+    pub fn visible_sessions(&self) -> Vec<&Session> {
+        match self.search_query.as_deref() {
+            Some(query) => self
+                .sessions
+                .iter()
+                .filter(|session| fuzzy_matches(&session.name, query))
+                .collect(),
+            None => self.sessions.iter().collect(),
+        }
+    }
+
+    pub fn visible_session_count(&self) -> usize {
+        self.visible_sessions().len()
+    }
+
+    pub fn start_search(&mut self) {
+        self.search_query = Some(String::new());
+        self.selected_index = 0;
+    }
+
+    pub fn push_search_char(&mut self, ch: char) {
+        if let Some(query) = &mut self.search_query {
+            query.push(ch);
+            self.selected_index = 0;
+        }
+    }
+
+    pub fn pop_search_char(&mut self) {
+        if let Some(query) = &mut self.search_query {
+            query.pop();
+            self.selected_index = 0;
+        }
+    }
+
+    pub fn clear_search(&mut self) {
+        self.search_query = None;
+        self.selected_index = 0;
+    }
+
+    pub fn is_searching(&self) -> bool {
+        self.search_query.is_some()
+    }
+
+    pub fn search_text(&self) -> Option<&str> {
+        self.search_query.as_deref()
     }
 
     pub fn replace_sessions(&mut self, sessions: Vec<Session>) {
         let selected_name = self.selected_session().map(|session| session.name.clone());
         self.sessions = sessions;
 
-        if self.sessions.is_empty() {
+        if self.visible_session_count() == 0 {
             self.selected_index = 0;
             return;
         }
 
         self.selected_index = selected_name
             .and_then(|name| {
-                self.sessions
-                    .iter()
+                self.visible_sessions()
+                    .into_iter()
                     .position(|session| session.name == name)
             })
-            .unwrap_or_else(|| self.selected_index.min(self.sessions.len() - 1));
+            .unwrap_or_else(|| self.selected_index.min(self.visible_session_count() - 1));
     }
 
     pub fn move_left(&mut self) {
@@ -66,7 +115,7 @@ impl App {
     }
 
     pub fn move_right(&mut self) {
-        if self.selected_index + 1 < self.sessions.len() {
+        if self.selected_index + 1 < self.visible_session_count() {
             self.selected_index += 1;
         }
     }
@@ -80,17 +129,31 @@ impl App {
 
     pub fn move_down(&mut self, columns: usize) {
         let columns = columns.max(1);
-        if self.sessions.is_empty() {
+        let visible_count = self.visible_session_count();
+        if visible_count == 0 {
             return;
         }
 
-        let last_index = self.sessions.len() - 1;
+        let last_index = visible_count - 1;
         let current_row = self.selected_index / columns;
         let last_row = last_index / columns;
         if current_row < last_row {
             self.selected_index = self.selected_index.saturating_add(columns).min(last_index);
         }
     }
+}
+
+fn fuzzy_matches(name: &str, query: &str) -> bool {
+    let query = query.to_lowercase();
+    if query.is_empty() {
+        return true;
+    }
+
+    let name = name.to_lowercase();
+    let mut name_chars = name.chars();
+    query
+        .chars()
+        .all(|query_ch| name_chars.any(|name_ch| name_ch == query_ch))
 }
 
 #[cfg(test)]
@@ -150,6 +213,55 @@ mod tests {
         app.replace_sessions(vec![session("new"), session("logs"), session("dev")]);
 
         assert_eq!(app.selected_session().unwrap().name, "logs");
+    }
+
+    #[test]
+    fn search_filters_sessions_by_fuzzy_name() {
+        let mut app = App::new(
+            vec![
+                session("backend-api"),
+                session("frontend"),
+                session("database"),
+            ],
+            None,
+        );
+
+        app.start_search();
+        app.push_search_char('b');
+        app.push_search_char('a');
+
+        let names: Vec<&str> = app
+            .visible_sessions()
+            .into_iter()
+            .map(|session| session.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["backend-api", "database"]);
+    }
+
+    #[test]
+    fn selected_session_uses_filtered_selection() {
+        let mut app = App::new(
+            vec![session("backend"), session("frontend"), session("database")],
+            None,
+        );
+
+        app.start_search();
+        app.push_search_char('f');
+
+        assert_eq!(app.selected_index, 0);
+        assert_eq!(app.selected_session().unwrap().name, "frontend");
+    }
+
+    #[test]
+    fn clearing_search_restores_all_sessions() {
+        let mut app = App::new(vec![session("backend"), session("frontend")], None);
+
+        app.start_search();
+        app.push_search_char('f');
+        app.clear_search();
+
+        assert!(!app.is_searching());
+        assert_eq!(app.visible_session_count(), 2);
     }
 
     #[test]

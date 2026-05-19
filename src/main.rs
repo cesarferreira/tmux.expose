@@ -101,7 +101,7 @@ fn main() -> Result<()> {
                 {
                     let columns = current_columns(
                         &terminal,
-                        app.sessions.len(),
+                        app.visible_session_count(),
                         cli.thumbnail_width,
                         forced_columns,
                     )?;

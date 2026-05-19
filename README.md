@@ -91,7 +91,11 @@ tmux-expose --refresh-interval 500
 
 | Key | Action |
 |---|---|
-| `Arrow keys` / `hjkl` | Move selection |
+| `Arrow keys` | Move selection |
+| `hjkl` | Move selection outside search |
+| `/` | Search sessions by fuzzy name |
+| `Backspace` | Edit search query |
+| `Esc` while searching | Clear search |
 | `Enter` | Switch to selected session |
 | `q` / `Esc` / `Ctrl-C` | Quit without switching |
 
