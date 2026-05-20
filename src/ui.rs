@@ -160,6 +160,8 @@ fn footer_hint_line(search_query: Option<&str>) -> Line<'static> {
         Some(query) => Line::from(vec![
             Span::styled(format!("Search: {query}"), Style::default().fg(Color::Cyan)),
             hint_text(" · type to filter · "),
+            hint_key("Backspace"),
+            hint_text(" to edit · "),
             hint_key("↑/↓/←/→"),
             hint_text(" to move · "),
             hint_key("Enter"),
@@ -168,15 +170,12 @@ fn footer_hint_line(search_query: Option<&str>) -> Line<'static> {
             hint_text(" to clear"),
         ]),
         None => Line::from(vec![
+            hint_text("type to filter · "),
             hint_key("↑/↓/←/→"),
-            hint_text(" or "),
-            hint_key("hjkl"),
             hint_text(" to move · "),
-            hint_key("/"),
-            hint_text(" search · "),
             hint_key("Enter"),
             hint_text(" to switch · "),
-            hint_key("q/Esc/Ctrl-C"),
+            hint_key("Esc/Ctrl-C"),
             hint_text(" to quit"),
         ]),
     }
@@ -593,10 +592,7 @@ mod tests {
             .map(|span| span.content.as_ref())
             .collect();
 
-        assert_eq!(
-            shortcut_text,
-            vec!["↑/↓/←/→", "hjkl", "/", "Enter", "q/Esc/Ctrl-C"]
-        );
+        assert_eq!(shortcut_text, vec!["↑/↓/←/→", "Enter", "Esc/Ctrl-C"]);
         assert!(
             shortcut_spans
                 .iter()
@@ -621,7 +617,7 @@ mod tests {
             .map(|span| span.content.as_ref())
             .collect();
 
-        assert_eq!(shortcut_text, vec!["↑/↓/←/→", "Enter", "Esc"]);
+        assert_eq!(shortcut_text, vec!["Backspace", "↑/↓/←/→", "Enter", "Esc"]);
         assert_eq!(line.spans[0].content, "Search: api");
         assert_eq!(line.spans[0].style.fg, Some(Color::Cyan));
     }

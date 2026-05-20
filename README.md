@@ -90,14 +90,13 @@ tmux-expose --refresh-interval 500
 
 | Key | Action |
 |---|---|
+| `Type` | Filter sessions by fuzzy name |
 | `Arrow keys` | Move selection |
-| `hjkl` | Move selection outside search |
 | `Mouse click` | Switch to clicked session |
-| `/` | Search sessions by fuzzy name |
 | `Backspace` | Edit search query |
 | `Esc` while searching | Clear search |
 | `Enter` | Switch to selected session |
-| `q` / `Esc` / `Ctrl-C` | Quit without switching |
+| `Esc` / `Ctrl-C` | Quit without switching |
 
 <a id="tmux-plugin"></a>
 ## tmux Plugin

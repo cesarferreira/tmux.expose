@@ -4,9 +4,7 @@ use ratatui::layout::Rect;
 use crate::{model::App, ui};
 
 pub fn handle_key(app: &mut App, key: KeyEvent, columns: usize) {
-    if (key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL)
-        || (key.code == KeyCode::Char('e') && key.modifiers == KeyModifiers::ALT)
-    {
+    if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
         app.should_quit = true;
         return;
     }
@@ -17,13 +15,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent, columns: usize) {
     }
 
     match (key.code, key.modifiers) {
-        (KeyCode::Esc, _) | (KeyCode::Char('q'), _) => app.should_quit = true,
+        (KeyCode::Esc, _) => app.should_quit = true,
         (KeyCode::Enter, _) => app.should_switch = true,
-        (KeyCode::Char('/'), KeyModifiers::NONE) => app.start_search(),
-        (KeyCode::Left, _) | (KeyCode::Char('h'), _) => move_left(app, columns),
-        (KeyCode::Right, _) | (KeyCode::Char('l'), _) => move_right(app, columns),
-        (KeyCode::Up, _) | (KeyCode::Char('k'), _) => app.move_up(columns),
-        (KeyCode::Down, _) | (KeyCode::Char('j'), _) => app.move_down(columns),
+        (KeyCode::Left, _) => move_left(app, columns),
+        (KeyCode::Right, _) => move_right(app, columns),
+        (KeyCode::Up, _) => app.move_up(columns),
+        (KeyCode::Down, _) => app.move_down(columns),
+        (KeyCode::Char(ch), KeyModifiers::NONE | KeyModifiers::SHIFT) => push_filter_char(app, ch),
         _ => {}
     }
 }
@@ -64,6 +62,7 @@ fn contains(area: Rect, x: u16, y: u16) -> bool {
 
 fn handle_search_key(app: &mut App, key: KeyEvent, columns: usize) {
     match (key.code, key.modifiers) {
+        (KeyCode::Esc, _) if app.search_text().is_some_and(str::is_empty) => app.should_quit = true,
         (KeyCode::Esc, _) => app.clear_search(),
         (KeyCode::Enter, _) => app.should_switch = true,
         (KeyCode::Backspace, _) => app.pop_search_char(),
@@ -71,9 +70,16 @@ fn handle_search_key(app: &mut App, key: KeyEvent, columns: usize) {
         (KeyCode::Right, _) => move_right(app, columns),
         (KeyCode::Up, _) => app.move_up(columns),
         (KeyCode::Down, _) => app.move_down(columns),
-        (KeyCode::Char(ch), KeyModifiers::NONE | KeyModifiers::SHIFT) => app.push_search_char(ch),
+        (KeyCode::Char(ch), KeyModifiers::NONE | KeyModifiers::SHIFT) => push_filter_char(app, ch),
         _ => {}
     }
+}
+
+fn push_filter_char(app: &mut App, ch: char) {
+    if !app.is_searching() {
+        app.start_search();
+    }
+    app.push_search_char(ch);
 }
 
 fn move_left(app: &mut App, columns: usize) {
@@ -132,24 +138,23 @@ mod tests {
     }
 
     #[test]
-    fn hjkl_keys_move_selection() {
+    fn hjkl_filter_instead_of_moving() {
         let mut app = App::new(vec![session("one"), session("two"), session("three")], None);
 
-        handle_key(&mut app, key(KeyCode::Char('l')), 2);
-        handle_key(&mut app, key(KeyCode::Char('j')), 2);
-        assert_eq!(app.selected_index, 2);
-
         handle_key(&mut app, key(KeyCode::Char('h')), 2);
-        assert_eq!(app.selected_index, 2);
+
+        assert_eq!(app.selected_index, 0);
+        assert_eq!(app.search_text(), Some("h"));
     }
 
     #[test]
-    fn quit_keys_mark_app_for_exit() {
-        let mut app = App::new(vec![session("one")], None);
+    fn q_filters_instead_of_quitting() {
+        let mut app = App::new(vec![session("queue")], None);
 
         handle_key(&mut app, key(KeyCode::Char('q')), 1);
 
-        assert!(app.should_quit);
+        assert_eq!(app.search_text(), Some("q"));
+        assert!(!app.should_quit);
     }
 
     #[test]
@@ -175,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn alt_e_marks_app_for_exit() {
+    fn alt_e_does_not_quit() {
         let mut app = App::new(vec![session("one")], None);
 
         handle_key(
@@ -184,7 +189,7 @@ mod tests {
             1,
         );
 
-        assert!(app.should_quit);
+        assert!(!app.should_quit);
         assert!(!app.should_switch);
     }
 
@@ -206,26 +211,42 @@ mod tests {
     }
 
     #[test]
-    fn slash_enters_search_mode() {
-        let mut app = App::new(vec![session("one")], None);
-
-        handle_key(&mut app, key(KeyCode::Char('/')), 1);
-
-        assert!(app.is_searching());
-        assert_eq!(app.search_text(), Some(""));
-    }
-
-    #[test]
-    fn characters_filter_sessions_while_searching() {
+    fn characters_start_filtering_without_slash() {
         let mut app = App::new(
             vec![session("backend"), session("frontend"), session("database")],
             None,
         );
 
-        handle_key(&mut app, key(KeyCode::Char('/')), 1);
         handle_key(&mut app, key(KeyCode::Char('f')), 1);
 
+        assert!(app.is_searching());
         assert_eq!(app.search_text(), Some("f"));
+        assert_eq!(app.visible_session_count(), 1);
+        assert_eq!(app.selected_session().unwrap().name, "frontend");
+    }
+
+    #[test]
+    fn slash_filters_instead_of_starting_empty_search() {
+        let mut app = App::new(vec![session("docs/api")], None);
+
+        handle_key(&mut app, key(KeyCode::Char('/')), 1);
+
+        assert_eq!(app.search_text(), Some("/"));
+        assert_eq!(app.visible_session_count(), 1);
+        assert_eq!(app.selected_session().unwrap().name, "docs/api");
+    }
+
+    #[test]
+    fn characters_continue_filtering_while_searching() {
+        let mut app = App::new(
+            vec![session("backend"), session("frontend"), session("database")],
+            None,
+        );
+
+        handle_key(&mut app, key(KeyCode::Char('f')), 1);
+        handle_key(&mut app, key(KeyCode::Char('r')), 1);
+
+        assert_eq!(app.search_text(), Some("fr"));
         assert_eq!(app.visible_session_count(), 1);
         assert_eq!(app.selected_session().unwrap().name, "frontend");
     }
@@ -234,7 +255,7 @@ mod tests {
     fn esc_clears_search_before_quitting() {
         let mut app = App::new(vec![session("one")], None);
 
-        handle_key(&mut app, key(KeyCode::Char('/')), 1);
+        handle_key(&mut app, key(KeyCode::Char('o')), 1);
         handle_key(&mut app, key(KeyCode::Esc), 1);
 
         assert!(!app.is_searching());
@@ -242,10 +263,20 @@ mod tests {
     }
 
     #[test]
+    fn esc_quits_when_search_query_is_empty() {
+        let mut app = App::new(vec![session("one")], None);
+
+        handle_key(&mut app, key(KeyCode::Char('o')), 1);
+        handle_key(&mut app, key(KeyCode::Backspace), 1);
+        handle_key(&mut app, key(KeyCode::Esc), 1);
+
+        assert!(app.should_quit);
+    }
+
+    #[test]
     fn backspace_edits_search_query() {
         let mut app = App::new(vec![session("frontend")], None);
 
-        handle_key(&mut app, key(KeyCode::Char('/')), 1);
         handle_key(&mut app, key(KeyCode::Char('f')), 1);
         handle_key(&mut app, key(KeyCode::Backspace), 1);
 
