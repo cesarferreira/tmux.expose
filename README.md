@@ -21,7 +21,6 @@
 
   <br>
 
-  <!-- Add your screenshot at assets/screenshot.png, then uncomment this block. -->
   <img src="assets/recording.gif" width="880" alt="tmux.expose in action">
 </div>
 
@@ -45,16 +44,86 @@ The shortest path is crates.io:
 cargo install tmux-expose
 ```
 
-Or install from this repository:
+## tmux Plugin
 
-```bash
-cargo install --path .
+Install with [TPM](https://github.com/tmux-plugins/tpm):
+
+```tmux
+set -g @plugin 'cesarferreira/tmux.expose'
 ```
 
-Verify the install:
+Reload tmux config, then press `prefix + I` to install plugins.
+
+The plugin binds `Alt+e` by default:
+
+```tmux
+Alt+e
+```
+
+It opens:
 
 ```bash
-tmux-expose --version
+tmux display-popup -w 100% -h 100% -E "tmux-expose"
+```
+
+With the default binding, press `Alt+e` again while tmux.expose is open to close it without switching.
+
+
+## Configuration
+
+Customize the tmux plugin before the `@plugin` line:
+
+```tmux
+set -g @tmux-expose-key 'E'
+set -g @tmux-expose-key-table 'prefix'
+set -g @tmux-expose-width '100%'
+set -g @tmux-expose-height '100%'
+set -g @tmux-expose-anchor 'center'
+set -g @tmux-expose-style 'bg=colour234'
+set -g @tmux-expose-border-style 'fg=colour245'
+set -g @tmux-expose-command 'tmux-expose --columns 2'
+
+set -g @plugin 'cesarferreira/tmux.expose'
+```
+
+`@tmux-expose-anchor` accepts `center`, `top`, `bottom`, `left`, or `right`. For example,
+use `set -g @tmux-expose-anchor 'bottom'` with `set -g @tmux-expose-height '50%'` to show
+tmux.expose in the bottom half of the screen.
+
+`@tmux-expose-style` maps to `display-popup -s`, and `@tmux-expose-border-style` maps to
+`display-popup -S`.
+
+## Custom Example
+
+This configuration binds tmux.expose to `prefix + s` and opens it as a bottom-anchored popup
+using 60% of the screen height:
+
+```tmux
+set -g @tmux-expose-key 's'
+set -g @tmux-expose-key-table 'prefix'
+set -g @tmux-expose-width '100%'
+set -g @tmux-expose-height '60%'
+set -g @tmux-expose-anchor 'bottom'
+set -g @tmux-expose-style 'bg=colour234'
+set -g @tmux-expose-border-style 'fg=colour245'
+
+set -g @plugin 'cesarferreira/tmux.expose'
+```
+
+It produces a popup equivalent to:
+
+```bash
+tmux display-popup -w 100% -h 60% -y '#{popup_pane_bottom}' -s 'bg=colour234' -S 'fg=colour245' -E "tmux-expose"
+```
+
+<p align="center">
+  <img src="assets/custom-example.png" width="880" alt="Custom tmux.expose popup example">
+</p>
+
+Use a direct binding if you do not use TPM:
+
+```tmux
+bind-key -T root M-e display-popup -w 100% -h 100% -E "tmux-expose"
 ```
 
 <a id="quickstart"></a>
@@ -99,87 +168,7 @@ tmux-expose --refresh-interval 500
 | `Esc` / `Ctrl-C` | Quit without switching |
 
 <a id="tmux-plugin"></a>
-## tmux Plugin
 
-Install with [TPM](https://github.com/tmux-plugins/tpm):
-
-```tmux
-set -g @plugin 'cesarferreira/tmux.expose'
-```
-
-Reload tmux config, then press `prefix + I` to install plugins.
-
-The plugin binds `Alt+e` by default:
-
-```tmux
-Alt+e
-```
-
-It opens:
-
-```bash
-tmux display-popup -w 100% -h 100% -E "tmux-expose"
-```
-
-With the default binding, press `Alt+e` again while tmux.expose is open to close it without switching.
-
-## Configuration
-
-Customize the tmux plugin before the `@plugin` line:
-
-```tmux
-set -g @tmux-expose-key 'E'
-set -g @tmux-expose-key-table 'prefix'
-set -g @tmux-expose-width '100%'
-set -g @tmux-expose-height '100%'
-set -g @tmux-expose-anchor 'center'
-set -g @tmux-expose-style 'bg=colour234'
-set -g @tmux-expose-border-style 'fg=colour245'
-set -g @tmux-expose-command 'tmux-expose --columns 2'
-
-set -g @plugin 'cesarferreira/tmux.expose'
-```
-
-`@tmux-expose-anchor` accepts `center`, `top`, `bottom`, `left`, or `right`. For example,
-use `set -g @tmux-expose-anchor 'bottom'` with `set -g @tmux-expose-height '50%'` to show
-tmux.expose in the bottom half of the screen.
-
-`@tmux-expose-style` maps to `display-popup -s`, and `@tmux-expose-border-style` maps to
-`display-popup -S`.
-
-## Custom Example
-
-This configuration binds tmux.expose to `prefix + s` and opens it as a bottom-anchored popup
-using 60% of the screen height:
-
-```tmux
-set -g @tmux-expose-key 's'
-set -g @tmux-expose-key-table 'prefix'
-set -g @tmux-expose-width '100%'
-set -g @tmux-expose-height '60%'
-set -g @tmux-expose-anchor 'bottom'
-set -g @tmux-expose-style 'bg=colour234'
-set -g @tmux-expose-border-style 'fg=colour245'
-set -g @tmux-expose-command 'tmux-expose'
-
-set -g @plugin 'cesarferreira/tmux.expose'
-```
-
-It produces a popup equivalent to:
-
-```bash
-tmux display-popup -w 100% -h 60% -y '#{popup_pane_bottom}' -s 'bg=colour234' -S 'fg=colour245' -E "tmux-expose"
-```
-
-<p align="center">
-  <img src="assets/custom-example.png" width="880" alt="Custom tmux.expose popup example">
-</p>
-
-Use a direct binding if you do not use TPM:
-
-```tmux
-bind-key -T root M-e display-popup -w 100% -h 100% -E "tmux-expose"
-```
 
 ## macOS Gesture Integration
 
