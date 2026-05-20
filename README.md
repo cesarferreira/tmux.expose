@@ -133,6 +133,8 @@ set -g @tmux-expose-key-table 'prefix'
 set -g @tmux-expose-width '100%'
 set -g @tmux-expose-height '100%'
 set -g @tmux-expose-anchor 'center'
+set -g @tmux-expose-style 'bg=colour234'
+set -g @tmux-expose-border-style 'fg=colour245'
 set -g @tmux-expose-command 'tmux-expose --columns 2'
 
 set -g @plugin 'cesarferreira/tmux.expose'
@@ -141,6 +143,37 @@ set -g @plugin 'cesarferreira/tmux.expose'
 `@tmux-expose-anchor` accepts `center`, `top`, `bottom`, `left`, or `right`. For example,
 use `set -g @tmux-expose-anchor 'bottom'` with `set -g @tmux-expose-height '50%'` to show
 tmux.expose in the bottom half of the screen.
+
+`@tmux-expose-style` maps to `display-popup -s`, and `@tmux-expose-border-style` maps to
+`display-popup -S`.
+
+## Custom Example
+
+This configuration binds tmux.expose to `prefix + s` and opens it as a bottom-anchored popup
+using 60% of the screen height:
+
+```tmux
+set -g @tmux-expose-key 's'
+set -g @tmux-expose-key-table 'prefix'
+set -g @tmux-expose-width '100%'
+set -g @tmux-expose-height '60%'
+set -g @tmux-expose-anchor 'bottom'
+set -g @tmux-expose-style 'bg=colour234'
+set -g @tmux-expose-border-style 'fg=colour245'
+set -g @tmux-expose-command 'tmux-expose'
+
+set -g @plugin 'cesarferreira/tmux.expose'
+```
+
+It produces a popup equivalent to:
+
+```bash
+tmux display-popup -w 100% -h 60% -y '#{popup_pane_bottom}' -s 'bg=colour234' -S 'fg=colour245' -E "tmux-expose"
+```
+
+<p align="center">
+  <img src="assets/custom-example.png" width="880" alt="Custom tmux.expose popup example">
+</p>
 
 Use a direct binding if you do not use TPM:
 

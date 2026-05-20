@@ -7,6 +7,8 @@ key_table="$(tmux show-option -gqv @tmux-expose-key-table)"
 width="$(tmux show-option -gqv @tmux-expose-width)"
 height="$(tmux show-option -gqv @tmux-expose-height)"
 anchor="$(tmux show-option -gqv @tmux-expose-anchor)"
+style="$(tmux show-option -gqv @tmux-expose-style)"
+border_style="$(tmux show-option -gqv @tmux-expose-border-style)"
 command="$(tmux show-option -gqv @tmux-expose-command)"
 
 if [[ -z "${key}" ]]; then
@@ -34,4 +36,13 @@ case "${anchor}" in
     ;;
 esac
 
-tmux bind-key -T "${key_table}" "${key}" display-popup -w "${width}" -h "${height}" "${position_args[@]}" -E "${command}"
+style_args=()
+if [[ -n "${style}" ]]; then
+  style_args+=(-s "${style}")
+fi
+
+if [[ -n "${border_style}" ]]; then
+  style_args+=(-S "${border_style}")
+fi
+
+tmux bind-key -T "${key_table}" "${key}" display-popup -w "${width}" -h "${height}" "${position_args[@]}" "${style_args[@]}" -E "${command}"

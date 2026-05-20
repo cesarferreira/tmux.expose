@@ -20,6 +20,8 @@ if [[ "$1" == "show-option" ]]; then
     @tmux-expose-width) printf '%s' "${TMUX_EXPOSE_TEST_WIDTH:-}" ;;
     @tmux-expose-height) printf '%s' "${TMUX_EXPOSE_TEST_HEIGHT:-}" ;;
     @tmux-expose-anchor) printf '%s' "${TMUX_EXPOSE_TEST_ANCHOR:-}" ;;
+    @tmux-expose-style) printf '%s' "${TMUX_EXPOSE_TEST_STYLE:-}" ;;
+    @tmux-expose-border-style) printf '%s' "${TMUX_EXPOSE_TEST_BORDER_STYLE:-}" ;;
     @tmux-expose-command) printf '%s' "${TMUX_EXPOSE_TEST_COMMAND:-}" ;;
   esac
   exit 0
@@ -35,6 +37,8 @@ FAKE_TMUX
     TMUX_EXPOSE_TEST_WIDTH="${TMUX_EXPOSE_TEST_WIDTH:-}" \
     TMUX_EXPOSE_TEST_HEIGHT="${TMUX_EXPOSE_TEST_HEIGHT:-}" \
     TMUX_EXPOSE_TEST_ANCHOR="${TMUX_EXPOSE_TEST_ANCHOR:-}" \
+    TMUX_EXPOSE_TEST_STYLE="${TMUX_EXPOSE_TEST_STYLE:-}" \
+    TMUX_EXPOSE_TEST_BORDER_STYLE="${TMUX_EXPOSE_TEST_BORDER_STYLE:-}" \
     TMUX_EXPOSE_TEST_COMMAND="${TMUX_EXPOSE_TEST_COMMAND:-}" \
     PATH="${tmpdir}:${PATH}" \
     bash "${repo_root}/tmux.expose.tmux"
@@ -78,3 +82,7 @@ assert_equals \
 assert_equals \
   'bind-key -T root M-e display-popup -w 50% -h 100% -x \#\{popup_pane_left\} -E tmux-expose ' \
   "$(TMUX_EXPOSE_TEST_ANCHOR=left TMUX_EXPOSE_TEST_WIDTH=50% run_plugin)"
+
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -s bg=colour234 -S fg=colour245 -E tmux-expose ' \
+  "$(TMUX_EXPOSE_TEST_STYLE='bg=colour234' TMUX_EXPOSE_TEST_BORDER_STYLE='fg=colour245' run_plugin)"
