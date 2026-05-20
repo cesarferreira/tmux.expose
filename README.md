@@ -98,11 +98,6 @@ tmux.expose in the bottom half of the screen.
 This configuration binds tmux.expose to `prefix + s` and opens it as a bottom-anchored popup
 using 60% of the screen height:
 
-
-<p align="center">
-  <img src="assets/custom-example.png" width="880" alt="Custom tmux.expose popup example">
-</p>
-
 ```tmux
 set -g @tmux-expose-key 's'
 set -g @tmux-expose-key-table 'prefix'
@@ -114,6 +109,10 @@ set -g @tmux-expose-border-style 'fg=colour245'
 
 set -g @plugin 'cesarferreira/tmux.expose'
 ```
+
+<p align="center">
+  <img src="assets/custom-example.png" width="880" alt="Custom tmux.expose popup example">
+</p>
 
 It produces a popup equivalent to:
 
