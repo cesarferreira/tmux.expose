@@ -6,7 +6,6 @@
   <p>
     <a href="https://github.com/cesarferreira/tmux.expose/actions/workflows/rust-tests.yml"><img alt="CI" src="https://github.com/cesarferreira/tmux.expose/actions/workflows/rust-tests.yml/badge.svg"></a>
     <a href="https://crates.io/crates/tmux-expose"><img alt="Crates.io" src="https://img.shields.io/crates/v/tmux-expose"></a>
-    <a href="https://github.com/cesarferreira/tmux.expose/releases"><img alt="Release" src="https://img.shields.io/github/v/release/cesarferreira/tmux.expose?color=blue"></a>
     <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   </p>
 
