@@ -45,4 +45,4 @@ if [[ -n "${border_style}" ]]; then
   style_args+=(-S "${border_style}")
 fi
 
-tmux bind-key -T "${key_table}" "${key}" display-popup -w "${width}" -h "${height}" "${position_args[@]}" "${style_args[@]}" -E "${command}"
+tmux bind-key -T "${key_table}" "${key}" display-popup -w "${width}" -h "${height}" "${position_args[@]}" "${style_args[@]}" -e "TMUX_EXPOSE_TOGGLE_KEY=${key}" -E "${command}"

@@ -1,5 +1,5 @@
 use std::{
-    io,
+    env, io,
     time::{Duration, Instant},
 };
 
@@ -70,6 +70,9 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend).context("failed to create terminal")?;
 
     let refresh_interval = Duration::from_millis(cli.refresh_interval);
+    let toggle_key = env::var("TMUX_EXPOSE_TOGGLE_KEY")
+        .ok()
+        .and_then(|key| input::ToggleKey::from_tmux_key(&key));
     let mut last_refresh = Instant::now();
 
     loop {
@@ -111,7 +114,7 @@ fn main() -> Result<()> {
                         cli.thumbnail_width,
                         forced_columns,
                     )?;
-                    input::handle_key(&mut app, key, columns);
+                    input::handle_key_with_toggle(&mut app, key, columns, toggle_key);
                 }
                 Event::Mouse(mouse) => {
                     let grid_area = current_grid_area(&terminal)?;

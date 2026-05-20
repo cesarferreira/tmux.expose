@@ -117,14 +117,14 @@ set -g @plugin 'cesarferreira/tmux.expose'
 It produces a popup equivalent to:
 
 ```bash
-tmux display-popup -w 100% -h 60% -y '#{popup_pane_bottom}' -s 'bg=colour234' -S 'fg=colour245' -E "tmux-expose"
+tmux display-popup -w 100% -h 60% -y '#{popup_pane_bottom}' -s 'bg=colour234' -S 'fg=colour245' -e TMUX_EXPOSE_TOGGLE_KEY=s -E "tmux-expose"
 ```
 
 
 Use a direct binding if you do not use TPM:
 
 ```tmux
-bind-key -T root M-e display-popup -w 100% -h 100% -E "tmux-expose"
+bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E "tmux-expose"
 ```
 
 <a id="quickstart"></a>

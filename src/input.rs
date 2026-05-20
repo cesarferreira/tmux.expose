@@ -3,8 +3,58 @@ use ratatui::layout::Rect;
 
 use crate::{model::App, ui};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ToggleKey {
+    code: KeyCode,
+    modifiers: KeyModifiers,
+}
+
+impl ToggleKey {
+    pub fn from_tmux_key(value: &str) -> Option<Self> {
+        let (mut modifiers, key) = if let Some(key) = value.strip_prefix("M-") {
+            (KeyModifiers::ALT, key)
+        } else if let Some(key) = value.strip_prefix("C-") {
+            (KeyModifiers::CONTROL, key)
+        } else {
+            (KeyModifiers::NONE, value)
+        };
+
+        let code = match key {
+            "Esc" => KeyCode::Esc,
+            key if key.chars().count() == 1 => {
+                let ch = key.chars().next()?;
+                if ch.is_ascii_uppercase() {
+                    modifiers.insert(KeyModifiers::SHIFT);
+                }
+                KeyCode::Char(ch)
+            }
+            _ => return None,
+        };
+
+        Some(Self { code, modifiers })
+    }
+
+    fn matches(self, key: KeyEvent) -> bool {
+        self.code == key.code && self.modifiers == key.modifiers
+    }
+}
+
 pub fn handle_key(app: &mut App, key: KeyEvent, columns: usize) {
+    handle_key_with_toggle(app, key, columns, None);
+}
+
+pub fn handle_key_with_toggle(
+    app: &mut App,
+    key: KeyEvent,
+    columns: usize,
+    toggle_key: Option<ToggleKey>,
+) {
     if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+        app.should_quit = true;
+        return;
+    }
+
+    if toggle_key.is_some_and(|toggle_key| toggle_key.matches(key)) {
         app.should_quit = true;
         return;
     }
@@ -180,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn alt_e_does_not_quit() {
+    fn alt_e_does_not_quit_without_configured_toggle_key() {
         let mut app = App::new(vec![session("one")], None);
 
         handle_key(
@@ -190,6 +240,40 @@ mod tests {
         );
 
         assert!(!app.should_quit);
+        assert!(!app.should_switch);
+    }
+
+    #[test]
+    fn configured_alt_e_marks_app_for_exit() {
+        let mut app = App::new(vec![session("one")], None);
+        let toggle_key = ToggleKey::from_tmux_key("M-e");
+
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::ALT),
+            1,
+            toggle_key,
+        );
+
+        assert!(app.should_quit);
+        assert!(!app.should_switch);
+    }
+
+    #[test]
+    fn configured_plain_key_marks_app_for_exit_while_searching() {
+        let mut app = App::new(vec![session("one")], None);
+        let toggle_key = ToggleKey::from_tmux_key("s");
+        app.start_search();
+        app.push_search_char('o');
+
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE),
+            1,
+            toggle_key,
+        );
+
+        assert!(app.should_quit);
         assert!(!app.should_switch);
     }
 
