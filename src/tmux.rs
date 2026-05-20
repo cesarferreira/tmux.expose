@@ -4,8 +4,9 @@ use anyhow::{Context, Result, anyhow};
 
 use crate::model::Session;
 
-const FIELD_SEPARATOR: char = '\u{1f}';
-const SESSION_FORMAT: &str = "#{session_id}\u{1f}#{session_name}\u{1f}#{session_attached}\u{1f}#{session_windows}\u{1f}#{session_created}\u{1f}#{session_activity}";
+const FIELD_SEPARATOR: char = ':';
+const LEGACY_FIELD_SEPARATOR: char = '\u{1f}';
+const SESSION_FORMAT: &str = "#{session_id}:#{session_name}:#{session_attached}:#{session_windows}:#{session_created}:#{session_activity}";
 
 pub fn list_sessions() -> Result<Vec<Session>> {
     list_sessions_skipping_preview_for(None)
@@ -24,7 +25,7 @@ pub fn list_sessions_skipping_preview_for(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut sessions = parse_sessions(&stdout);
+    let mut sessions = parse_sessions_output(&stdout)?;
 
     for session in &mut sessions {
         session.current_window = current_window_name(&session.id).unwrap_or(None);
@@ -126,7 +127,12 @@ pub fn parse_sessions(output: &str) -> Vec<Session> {
     output
         .lines()
         .filter_map(|line| {
-            let mut parts = line.splitn(6, FIELD_SEPARATOR);
+            let separator = if line.contains(FIELD_SEPARATOR) {
+                FIELD_SEPARATOR
+            } else {
+                LEGACY_FIELD_SEPARATOR
+            };
+            let mut parts = line.splitn(6, separator);
             let id = parts.next()?.to_string();
             let name = parts.next()?.to_string();
             if name.is_empty() {
@@ -156,6 +162,17 @@ pub fn parse_sessions(output: &str) -> Vec<Session> {
             })
         })
         .collect()
+}
+
+fn parse_sessions_output(output: &str) -> Result<Vec<Session>> {
+    let sessions = parse_sessions(output);
+    if sessions.is_empty() && !output.trim().is_empty() {
+        return Err(anyhow!(
+            "tmux list-sessions returned output in an unexpected format"
+        ));
+    }
+
+    Ok(sessions)
 }
 
 pub fn trim_preview(output: &str, max_lines: usize) -> Vec<String> {
@@ -212,6 +229,27 @@ mod tests {
 
         assert_eq!(sessions[0].id, "$3");
         assert_eq!(sessions[0].name, "dev|api");
+    }
+
+    #[test]
+    fn parses_colon_delimited_session_lines() {
+        let sessions = parse_sessions("$3:dev|api:0:1:1710000000:1710000300\n");
+
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "$3");
+        assert_eq!(sessions[0].name, "dev|api");
+        assert!(!sessions[0].attached);
+        assert_eq!(sessions[0].window_count, 1);
+        assert_eq!(sessions[0].last_activity.as_deref(), Some("1710000300"));
+    }
+
+    #[test]
+    fn rejects_non_empty_unparseable_session_output() {
+        let error = parse_sessions_output("$3dev011710000000171000300\n")
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("unexpected format"));
     }
 
     #[test]
