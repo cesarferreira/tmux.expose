@@ -23,7 +23,7 @@
   <br>
 
   <!-- Add your screenshot at assets/screenshot.png, then uncomment this block. -->
-  <!-- <img src="assets/screenshot.png" width="880" alt="tmux.expose in action"> -->
+  <img src="assets/screenshot.png" width="880" alt="tmux.expose in action">
 </div>
 
 ---
