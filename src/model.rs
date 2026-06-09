@@ -1,3 +1,26 @@
+use ratatui::style::Color;
+
+/// Colors used to highlight session cards by state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CardColors {
+    /// The currently selected card (title + border).
+    pub selected: Color,
+    /// The session you are currently attached to (title + border).
+    pub attached: Color,
+    /// Every other card (title only; the border stays dimmed).
+    pub inactive: Color,
+}
+
+impl Default for CardColors {
+    fn default() -> Self {
+        Self {
+            selected: Color::Yellow,
+            attached: Color::Green,
+            inactive: Color::White,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Session {
     pub id: String,
@@ -18,6 +41,7 @@ pub struct App {
     pub should_quit: bool,
     pub should_switch: bool,
     pub error: Option<String>,
+    pub colors: CardColors,
     search_query: Option<String>,
 }
 
@@ -35,6 +59,7 @@ impl App {
             should_quit: false,
             should_switch: false,
             error: None,
+            colors: CardColors::default(),
             search_query: None,
         }
     }

@@ -1,5 +1,6 @@
 use std::{
     env, io,
+    str::FromStr,
     time::{Duration, Instant},
 };
 
@@ -11,6 +12,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use ratatui::style::Color;
 use ratatui::{Terminal, backend::CrosstermBackend, layout::Rect};
 use tmux_expose::{input, model::App, tmux, ui};
 
@@ -25,6 +27,19 @@ struct Cli {
 
     #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..))]
     columns: Option<u16>,
+
+    #[arg(long, value_name = "COLOR", value_parser = parse_color)]
+    selected_color: Option<Color>,
+
+    #[arg(long, value_name = "COLOR", value_parser = parse_color)]
+    attached_color: Option<Color>,
+
+    #[arg(long, value_name = "COLOR", value_parser = parse_color)]
+    inactive_color: Option<Color>,
+}
+
+fn parse_color(value: &str) -> Result<Color, String> {
+    Color::from_str(value).map_err(|_| format!("invalid color: {value}"))
 }
 
 struct TerminalGuard;
@@ -64,6 +79,16 @@ fn main() -> Result<()> {
             app
         }
     };
+
+    if let Some(color) = cli.selected_color {
+        app.colors.selected = color;
+    }
+    if let Some(color) = cli.attached_color {
+        app.colors.attached = color;
+    }
+    if let Some(color) = cli.inactive_color {
+        app.colors.inactive = color;
+    }
 
     let _guard = TerminalGuard::enter()?;
     let backend = CrosstermBackend::new(io::stdout());
@@ -192,5 +217,52 @@ mod tests {
         let cli = Cli::parse_from(["tmux-expose", "--columns", "2"]);
 
         assert_eq!(cli.columns, Some(2));
+    }
+
+    #[test]
+    fn color_options_default_to_none() {
+        let cli = Cli::parse_from(["tmux-expose"]);
+
+        assert_eq!(cli.selected_color, None);
+        assert_eq!(cli.attached_color, None);
+        assert_eq!(cli.inactive_color, None);
+    }
+
+    #[test]
+    fn parses_named_color() {
+        let cli = Cli::parse_from(["tmux-expose", "--selected-color", "cyan"]);
+
+        assert_eq!(cli.selected_color, Some(Color::Cyan));
+    }
+
+    #[test]
+    fn parses_indexed_color() {
+        let cli = Cli::parse_from(["tmux-expose", "--attached-color", "208"]);
+
+        assert_eq!(cli.attached_color, Some(Color::Indexed(208)));
+    }
+
+    #[test]
+    fn parses_all_color_options() {
+        let cli = Cli::parse_from([
+            "tmux-expose",
+            "--selected-color",
+            "magenta",
+            "--attached-color",
+            "green",
+            "--inactive-color",
+            "white",
+        ]);
+
+        assert_eq!(cli.selected_color, Some(Color::Magenta));
+        assert_eq!(cli.attached_color, Some(Color::Green));
+        assert_eq!(cli.inactive_color, Some(Color::White));
+    }
+
+    #[test]
+    fn rejects_invalid_color() {
+        let result = Cli::try_parse_from(["tmux-expose", "--selected-color", "not-a-color"]);
+
+        assert!(result.is_err());
     }
 }

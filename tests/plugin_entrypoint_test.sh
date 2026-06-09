@@ -22,6 +22,9 @@ if [[ "$1" == "show-option" ]]; then
     @tmux-expose-anchor) printf '%s' "${TMUX_EXPOSE_TEST_ANCHOR:-}" ;;
     @tmux-expose-style) printf '%s' "${TMUX_EXPOSE_TEST_STYLE:-}" ;;
     @tmux-expose-border-style) printf '%s' "${TMUX_EXPOSE_TEST_BORDER_STYLE:-}" ;;
+    @tmux-expose-selected-color) printf '%s' "${TMUX_EXPOSE_TEST_SELECTED_COLOR:-}" ;;
+    @tmux-expose-attached-color) printf '%s' "${TMUX_EXPOSE_TEST_ATTACHED_COLOR:-}" ;;
+    @tmux-expose-inactive-color) printf '%s' "${TMUX_EXPOSE_TEST_INACTIVE_COLOR:-}" ;;
     @tmux-expose-command) printf '%s' "${TMUX_EXPOSE_TEST_COMMAND:-}" ;;
   esac
   exit 0
@@ -39,6 +42,9 @@ FAKE_TMUX
     TMUX_EXPOSE_TEST_ANCHOR="${TMUX_EXPOSE_TEST_ANCHOR:-}" \
     TMUX_EXPOSE_TEST_STYLE="${TMUX_EXPOSE_TEST_STYLE:-}" \
     TMUX_EXPOSE_TEST_BORDER_STYLE="${TMUX_EXPOSE_TEST_BORDER_STYLE:-}" \
+    TMUX_EXPOSE_TEST_SELECTED_COLOR="${TMUX_EXPOSE_TEST_SELECTED_COLOR:-}" \
+    TMUX_EXPOSE_TEST_ATTACHED_COLOR="${TMUX_EXPOSE_TEST_ATTACHED_COLOR:-}" \
+    TMUX_EXPOSE_TEST_INACTIVE_COLOR="${TMUX_EXPOSE_TEST_INACTIVE_COLOR:-}" \
     TMUX_EXPOSE_TEST_COMMAND="${TMUX_EXPOSE_TEST_COMMAND:-}" \
     PATH="${tmpdir}:${PATH}" \
     bash "${repo_root}/tmux.expose.tmux"
@@ -86,3 +92,11 @@ assert_equals \
 assert_equals \
   'bind-key -T root M-e display-popup -w 100% -h 100% -s bg=colour234 -S fg=colour245 -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose ' \
   "$(TMUX_EXPOSE_TEST_STYLE='bg=colour234' TMUX_EXPOSE_TEST_BORDER_STYLE='fg=colour245' run_plugin)"
+
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --selected-color\ magenta ' \
+  "$(TMUX_EXPOSE_TEST_SELECTED_COLOR=magenta run_plugin)"
+
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --selected-color\ magenta\ --attached-color\ blue\ --inactive-color\ colour245 ' \
+  "$(TMUX_EXPOSE_TEST_SELECTED_COLOR=magenta TMUX_EXPOSE_TEST_ATTACHED_COLOR=blue TMUX_EXPOSE_TEST_INACTIVE_COLOR=colour245 run_plugin)"

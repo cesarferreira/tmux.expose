@@ -9,6 +9,9 @@ height="$(tmux show-option -gqv @tmux-expose-height)"
 anchor="$(tmux show-option -gqv @tmux-expose-anchor)"
 style="$(tmux show-option -gqv @tmux-expose-style)"
 border_style="$(tmux show-option -gqv @tmux-expose-border-style)"
+selected_color="$(tmux show-option -gqv @tmux-expose-selected-color)"
+attached_color="$(tmux show-option -gqv @tmux-expose-attached-color)"
+inactive_color="$(tmux show-option -gqv @tmux-expose-inactive-color)"
 command="$(tmux show-option -gqv @tmux-expose-command)"
 
 if [[ -z "${key}" ]]; then
@@ -22,6 +25,18 @@ width="${width:-100%}"
 height="${height:-100%}"
 anchor="${anchor:-center}"
 command="${command:-tmux-expose}"
+
+if [[ -n "${selected_color}" ]]; then
+  command="${command} --selected-color ${selected_color}"
+fi
+
+if [[ -n "${attached_color}" ]]; then
+  command="${command} --attached-color ${attached_color}"
+fi
+
+if [[ -n "${inactive_color}" ]]; then
+  command="${command} --inactive-color ${inactive_color}"
+fi
 
 position_args=()
 case "${anchor}" in

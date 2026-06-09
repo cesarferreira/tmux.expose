@@ -81,6 +81,9 @@ set -g @tmux-expose-height '100%'
 set -g @tmux-expose-anchor 'center'
 set -g @tmux-expose-style 'bg=colour234'
 set -g @tmux-expose-border-style 'fg=colour245'
+set -g @tmux-expose-selected-color 'yellow'
+set -g @tmux-expose-attached-color 'green'
+set -g @tmux-expose-inactive-color 'white'
 set -g @tmux-expose-command 'tmux-expose --columns 2'
 
 set -g @plugin 'cesarferreira/tmux.expose'
@@ -92,6 +95,12 @@ tmux.expose in the bottom half of the screen.
 
 `@tmux-expose-style` maps to `display-popup -s`, and `@tmux-expose-border-style` maps to
 `display-popup -S`.
+
+`@tmux-expose-selected-color`, `@tmux-expose-attached-color`, and
+`@tmux-expose-inactive-color` set the highlight color of the selected card, the session
+you are currently attached to, and every other card, respectively. They accept a color
+name (`yellow`, `cyan`, …), a 256-color index (`colour208` / `208`), or a hex value
+(`#ff8700`). The defaults are `yellow`, `green`, and `white`.
 
 ## Custom Example
 
@@ -154,6 +163,12 @@ Refresh interval defaults to 500ms:
 
 ```bash
 tmux-expose --refresh-interval 500
+```
+
+Recolor the card highlights (names, 256-color indices, or hex values are accepted):
+
+```bash
+tmux-expose --selected-color cyan --attached-color green --inactive-color white
 ```
 
 ## Controls
