@@ -100,3 +100,8 @@ assert_equals \
 assert_equals \
   'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --selected-color\ magenta\ --attached-color\ blue\ --inactive-color\ colour245 ' \
   "$(TMUX_EXPOSE_TEST_SELECTED_COLOR=magenta TMUX_EXPOSE_TEST_ATTACHED_COLOR=blue TMUX_EXPOSE_TEST_INACTIVE_COLOR=colour245 run_plugin)"
+
+# Hex values must be shell-escaped so the popup command isn't truncated at '#'.
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --selected-color\ \\\#ff8700 ' \
+  "$(TMUX_EXPOSE_TEST_SELECTED_COLOR='#ff8700' run_plugin)"

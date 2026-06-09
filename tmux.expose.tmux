@@ -26,16 +26,19 @@ height="${height:-100%}"
 anchor="${anchor:-center}"
 command="${command:-tmux-expose}"
 
+# Shell-escape color values before splicing them into the -E command string.
+# tmux runs that string through the shell, where an unquoted hex value such as
+# "#ff8700" would otherwise be swallowed as a comment.
 if [[ -n "${selected_color}" ]]; then
-  command="${command} --selected-color ${selected_color}"
+  command="${command} --selected-color $(printf '%q' "${selected_color}")"
 fi
 
 if [[ -n "${attached_color}" ]]; then
-  command="${command} --attached-color ${attached_color}"
+  command="${command} --attached-color $(printf '%q' "${attached_color}")"
 fi
 
 if [[ -n "${inactive_color}" ]]; then
-  command="${command} --inactive-color ${inactive_color}"
+  command="${command} --inactive-color $(printf '%q' "${inactive_color}")"
 fi
 
 position_args=()

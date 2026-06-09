@@ -39,7 +39,21 @@ struct Cli {
 }
 
 fn parse_color(value: &str) -> Result<Color, String> {
-    Color::from_str(value).map_err(|_| format!("invalid color: {value}"))
+    if let Ok(color) = Color::from_str(value) {
+        return Ok(color);
+    }
+
+    // Accept tmux-style indexed colors such as `colour208` / `color208`,
+    // which ratatui's parser does not recognize on its own.
+    if let Some(index) = value
+        .strip_prefix("colour")
+        .or_else(|| value.strip_prefix("color"))
+        .and_then(|digits| digits.parse::<u8>().ok())
+    {
+        return Ok(Color::Indexed(index));
+    }
+
+    Err(format!("invalid color: {value}"))
 }
 
 struct TerminalGuard;
@@ -260,9 +274,27 @@ mod tests {
     }
 
     #[test]
+    fn parses_hex_color() {
+        let cli = Cli::parse_from(["tmux-expose", "--selected-color", "#ff8700"]);
+
+        assert_eq!(cli.selected_color, Some(Color::Rgb(255, 135, 0)));
+    }
+
+    #[test]
+    fn parses_tmux_style_indexed_color() {
+        // tmux spells indexed colors as `colour208`; ratatui only accepts `208`.
+        assert_eq!(parse_color("colour208"), Ok(Color::Indexed(208)));
+        assert_eq!(parse_color("color208"), Ok(Color::Indexed(208)));
+        assert_eq!(parse_color("208"), Ok(Color::Indexed(208)));
+    }
+
+    #[test]
     fn rejects_invalid_color() {
         let result = Cli::try_parse_from(["tmux-expose", "--selected-color", "not-a-color"]);
 
         assert!(result.is_err());
+        // `colour` prefix with a non-numeric / out-of-range suffix is still invalid.
+        assert!(parse_color("colourize").is_err());
+        assert!(parse_color("colour999").is_err());
     }
 }
