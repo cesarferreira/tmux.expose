@@ -96,11 +96,33 @@ tmux.expose in the bottom half of the screen.
 `@tmux-expose-style` maps to `display-popup -s`, and `@tmux-expose-border-style` maps to
 `display-popup -S`.
 
-`@tmux-expose-selected-color`, `@tmux-expose-attached-color`, and
-`@tmux-expose-inactive-color` set the highlight color of the selected card, the session
-you are currently attached to, and every other card, respectively. They accept a color
-name (`yellow`, `cyan`, …), a 256-color index (`colour208` / `208`), or a hex value
-(`#ff8700`). The defaults are `yellow`, `green`, and `white`.
+### Card colors
+
+Each session card is highlighted based on its state. Recolor any of them to match your
+theme:
+
+| Option | Highlights | Default |
+|---|---|---|
+| `@tmux-expose-selected-color` | The card under the cursor (title + border) | `yellow` |
+| `@tmux-expose-attached-color` | The session you are currently attached to (title + border) | `green` |
+| `@tmux-expose-inactive-color` | Every other card (title only; the border stays dimmed) | `white` |
+
+Values accept a color name (`yellow`, `cyan`, …), a 256-color index (`colour208` or
+`208`), or a hex value (`#ff8700`). Omit an option to keep its default.
+
+For example, a [Dracula](https://draculatheme.com/)-flavored setup:
+
+```tmux
+set -g @tmux-expose-selected-color '#bd93f9'
+set -g @tmux-expose-attached-color '#50fa7b'
+set -g @tmux-expose-inactive-color '#6272a4'
+```
+
+The same colors are also available as CLI flags when running the binary directly:
+
+```bash
+tmux-expose --selected-color '#bd93f9' --attached-color '#50fa7b' --inactive-color '#6272a4'
+```
 
 ## Custom Example
 
