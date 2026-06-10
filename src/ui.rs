@@ -13,6 +13,27 @@ pub const MIN_CARD_HEIGHT: u16 = 10;
 const CARD_GAP: u16 = 2;
 const FOOTER_HEIGHT: u16 = 1;
 
+/// Colors used to highlight session cards by state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CardColors {
+    /// The currently selected card (title + border).
+    pub selected: Color,
+    /// The session you are currently attached to (title + border).
+    pub attached: Color,
+    /// Every other card (title only; the border stays dimmed).
+    pub inactive: Color,
+}
+
+impl Default for CardColors {
+    fn default() -> Self {
+        Self {
+            selected: Color::Yellow,
+            attached: Color::Green,
+            inactive: Color::White,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GridLayout {
     pub columns: usize,
@@ -23,6 +44,7 @@ pub struct GridLayout {
 pub fn render(
     frame: &mut Frame<'_>,
     app: &App,
+    colors: CardColors,
     min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) {
@@ -50,7 +72,14 @@ pub fn render(
     } else if app.visible_session_count() == 0 {
         render_centered_message(frame, chunks[0], "No matching sessions");
     } else {
-        render_grid(frame, app, chunks[0], min_card_width, forced_columns);
+        render_grid(
+            frame,
+            app,
+            colors,
+            chunks[0],
+            min_card_width,
+            forced_columns,
+        );
     }
 
     let footer = Paragraph::new(footer_hint_line(app.search_text()));
@@ -60,6 +89,7 @@ pub fn render(
 pub fn render_grid(
     frame: &mut Frame<'_>,
     app: &App,
+    colors: CardColors,
     area: Rect,
     min_card_width: Option<u16>,
     forced_columns: Option<usize>,
@@ -76,6 +106,7 @@ pub fn render_grid(
                 session,
                 index == app.selected_index,
                 current_attached,
+                colors,
                 *card_area,
             );
         }
@@ -87,6 +118,7 @@ pub fn render_card(
     session: &Session,
     selected: bool,
     current_attached: bool,
+    colors: CardColors,
     area: Rect,
 ) {
     let title = format!(
@@ -96,7 +128,7 @@ pub fn render_card(
     let block = Block::default()
         .title(Span::styled(
             title,
-            card_title_style(selected, current_attached),
+            card_title_style(selected, current_attached, colors),
         ))
         .title_bottom(session_status_span(session.attached))
         .borders(Borders::ALL)
@@ -105,7 +137,7 @@ pub fn render_card(
         } else {
             BorderType::Plain
         })
-        .border_style(card_border_style(selected, current_attached));
+        .border_style(card_border_style(selected, current_attached, colors));
 
     let preview_height = area.height.saturating_sub(5) as usize;
     let mut lines = Vec::new();
@@ -146,29 +178,29 @@ pub fn render_card(
     frame.render_widget(paragraph, area);
 }
 
-fn card_title_style(selected: bool, current_attached: bool) -> Style {
+fn card_title_style(selected: bool, current_attached: bool, colors: CardColors) -> Style {
     if selected {
         Style::default()
-            .fg(Color::Yellow)
+            .fg(colors.selected)
             .add_modifier(Modifier::BOLD)
     } else if current_attached {
         Style::default()
-            .fg(Color::Green)
+            .fg(colors.attached)
             .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
-            .fg(Color::White)
+            .fg(colors.inactive)
             .add_modifier(Modifier::BOLD)
     }
 }
 
-fn card_border_style(selected: bool, current_attached: bool) -> Style {
+fn card_border_style(selected: bool, current_attached: bool, colors: CardColors) -> Style {
     if selected {
         Style::default()
-            .fg(Color::Yellow)
+            .fg(colors.selected)
             .add_modifier(Modifier::BOLD)
     } else if current_attached {
-        Style::default().fg(Color::Green)
+        Style::default().fg(colors.attached)
     } else {
         Style::default().fg(Color::DarkGray)
     }
@@ -612,7 +644,7 @@ mod tests {
 
     #[test]
     fn selected_session_title_is_yellow_and_bold() {
-        let style = card_title_style(true, false);
+        let style = card_title_style(true, false, CardColors::default());
 
         assert_eq!(style.fg, Some(Color::Yellow));
         assert!(style.add_modifier.contains(Modifier::BOLD));
@@ -620,7 +652,7 @@ mod tests {
 
     #[test]
     fn current_attached_session_title_is_green_and_bold() {
-        let style = card_title_style(false, true);
+        let style = card_title_style(false, true, CardColors::default());
 
         assert_eq!(style.fg, Some(Color::Green));
         assert!(style.add_modifier.contains(Modifier::BOLD));
@@ -628,7 +660,7 @@ mod tests {
 
     #[test]
     fn other_session_titles_are_white_and_bold() {
-        let style = card_title_style(false, false);
+        let style = card_title_style(false, false, CardColors::default());
 
         assert_eq!(style.fg, Some(Color::White));
         assert!(style.add_modifier.contains(Modifier::BOLD));
@@ -636,7 +668,7 @@ mod tests {
 
     #[test]
     fn current_attached_session_border_is_green_when_not_selected() {
-        let style = card_border_style(false, true);
+        let style = card_border_style(false, true, CardColors::default());
 
         assert_eq!(style.fg, Some(Color::Green));
         assert!(!style.add_modifier.contains(Modifier::BOLD));
@@ -644,10 +676,36 @@ mod tests {
 
     #[test]
     fn selected_session_border_stays_yellow_and_bold() {
-        let style = card_border_style(true, true);
+        let style = card_border_style(true, true, CardColors::default());
 
         assert_eq!(style.fg, Some(Color::Yellow));
         assert!(style.add_modifier.contains(Modifier::BOLD));
+    }
+
+    #[test]
+    fn custom_colors_override_card_styles() {
+        let colors = CardColors {
+            selected: Color::Magenta,
+            attached: Color::Blue,
+            inactive: Color::Cyan,
+        };
+
+        assert_eq!(
+            card_title_style(true, false, colors).fg,
+            Some(Color::Magenta)
+        );
+        assert_eq!(
+            card_border_style(true, false, colors).fg,
+            Some(Color::Magenta)
+        );
+        assert_eq!(card_title_style(false, true, colors).fg, Some(Color::Blue));
+        assert_eq!(card_border_style(false, true, colors).fg, Some(Color::Blue));
+        assert_eq!(card_title_style(false, false, colors).fg, Some(Color::Cyan));
+        // Unselected border stays dimmed regardless of the configured color.
+        assert_eq!(
+            card_border_style(false, false, colors).fg,
+            Some(Color::DarkGray)
+        );
     }
 
     #[test]
