@@ -55,8 +55,14 @@ pub fn handle_key_with_toggle(
     }
 
     if toggle_key.is_some_and(|toggle_key| toggle_key.matches(key)) {
-        app.should_quit = true;
-        return;
+        // A plain (unmodified) toggle key — e.g. `e` from a `prefix + e` binding —
+        // must stay typeable while searching, so only close on it when a query is
+        // not being entered. A modified toggle (e.g. M-e) can't be typed into the
+        // filter, so it still closes from anywhere.
+        if !(app.is_searching() && key.modifiers == KeyModifiers::NONE) {
+            app.should_quit = true;
+            return;
+        }
     }
 
     if app.is_searching() {
@@ -260,11 +266,28 @@ mod tests {
     }
 
     #[test]
-    fn configured_plain_key_marks_app_for_exit_while_searching() {
-        let mut app = App::new(vec![session("one")], None);
+    fn plain_toggle_key_is_typeable_while_searching() {
+        let mut app = App::new(vec![session("session")], None);
         let toggle_key = ToggleKey::from_tmux_key("s");
         app.start_search();
-        app.push_search_char('o');
+        app.push_search_char('e');
+
+        // `s` is the toggle key, but while searching it must filter, not quit.
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE),
+            1,
+            toggle_key,
+        );
+
+        assert!(!app.should_quit);
+        assert_eq!(app.search_text(), Some("es"));
+    }
+
+    #[test]
+    fn plain_toggle_key_still_quits_when_not_searching() {
+        let mut app = App::new(vec![session("one")], None);
+        let toggle_key = ToggleKey::from_tmux_key("s");
 
         handle_key_with_toggle(
             &mut app,
@@ -274,7 +297,24 @@ mod tests {
         );
 
         assert!(app.should_quit);
-        assert!(!app.should_switch);
+    }
+
+    #[test]
+    fn modified_toggle_key_still_quits_while_searching() {
+        let mut app = App::new(vec![session("one")], None);
+        let toggle_key = ToggleKey::from_tmux_key("M-e");
+        app.start_search();
+        app.push_search_char('o');
+
+        // A modified chord can't be typed into the filter, so it still closes.
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::ALT),
+            1,
+            toggle_key,
+        );
+
+        assert!(app.should_quit);
     }
 
     #[test]
