@@ -1,5 +1,6 @@
 use std::{
     env, io,
+    str::FromStr,
     time::{Duration, Instant},
 };
 
@@ -11,6 +12,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use ratatui::style::Color;
 use ratatui::{Terminal, backend::CrosstermBackend, layout::Rect};
 use tmux_expose::{input, model::App, tmux, ui};
 
@@ -25,6 +27,36 @@ struct Cli {
 
     #[arg(long, value_name = "N", value_parser = clap::value_parser!(u16).range(1..))]
     columns: Option<u16>,
+
+    #[arg(long, value_name = "COLOR", value_parser = parse_color)]
+    selected_color: Option<Color>,
+
+    #[arg(long, value_name = "COLOR", value_parser = parse_color)]
+    attached_color: Option<Color>,
+
+    #[arg(long, value_name = "COLOR", value_parser = parse_color)]
+    inactive_color: Option<Color>,
+}
+
+fn parse_color(value: &str) -> Result<Color, String> {
+    if let Ok(color) = Color::from_str(value) {
+        return Ok(color);
+    }
+
+    // Accept tmux-style indexed colors such as `colour208` / `color208`,
+    // which ratatui's parser does not recognize on its own.
+    if let Some(index) = value
+        .strip_prefix("colour")
+        .or_else(|| value.strip_prefix("color"))
+        .and_then(|digits| digits.parse::<u8>().ok())
+    {
+        return Ok(Color::Indexed(index));
+    }
+
+    Err(format!(
+        "invalid color {value:?}; expected a name (e.g. `yellow`), \
+         an index (`208` or `colour208`), or a hex value (`#rrggbb`)"
+    ))
 }
 
 struct TerminalGuard;
@@ -65,6 +97,17 @@ fn main() -> Result<()> {
         }
     };
 
+    let mut colors = ui::CardColors::default();
+    if let Some(color) = cli.selected_color {
+        colors.selected = color;
+    }
+    if let Some(color) = cli.attached_color {
+        colors.attached = color;
+    }
+    if let Some(color) = cli.inactive_color {
+        colors.inactive = color;
+    }
+
     let _guard = TerminalGuard::enter()?;
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend).context("failed to create terminal")?;
@@ -77,7 +120,8 @@ fn main() -> Result<()> {
 
     loop {
         let forced_columns = cli.columns.map(usize::from);
-        terminal.draw(|frame| ui::render(frame, &app, cli.thumbnail_width, forced_columns))?;
+        terminal
+            .draw(|frame| ui::render(frame, &app, colors, cli.thumbnail_width, forced_columns))?;
 
         if app.should_quit {
             break;
@@ -192,5 +236,70 @@ mod tests {
         let cli = Cli::parse_from(["tmux-expose", "--columns", "2"]);
 
         assert_eq!(cli.columns, Some(2));
+    }
+
+    #[test]
+    fn color_options_default_to_none() {
+        let cli = Cli::parse_from(["tmux-expose"]);
+
+        assert_eq!(cli.selected_color, None);
+        assert_eq!(cli.attached_color, None);
+        assert_eq!(cli.inactive_color, None);
+    }
+
+    #[test]
+    fn parses_named_color() {
+        let cli = Cli::parse_from(["tmux-expose", "--selected-color", "cyan"]);
+
+        assert_eq!(cli.selected_color, Some(Color::Cyan));
+    }
+
+    #[test]
+    fn parses_indexed_color() {
+        let cli = Cli::parse_from(["tmux-expose", "--attached-color", "208"]);
+
+        assert_eq!(cli.attached_color, Some(Color::Indexed(208)));
+    }
+
+    #[test]
+    fn parses_all_color_options() {
+        let cli = Cli::parse_from([
+            "tmux-expose",
+            "--selected-color",
+            "magenta",
+            "--attached-color",
+            "green",
+            "--inactive-color",
+            "white",
+        ]);
+
+        assert_eq!(cli.selected_color, Some(Color::Magenta));
+        assert_eq!(cli.attached_color, Some(Color::Green));
+        assert_eq!(cli.inactive_color, Some(Color::White));
+    }
+
+    #[test]
+    fn parses_hex_color() {
+        let cli = Cli::parse_from(["tmux-expose", "--selected-color", "#ff8700"]);
+
+        assert_eq!(cli.selected_color, Some(Color::Rgb(255, 135, 0)));
+    }
+
+    #[test]
+    fn parses_tmux_style_indexed_color() {
+        // tmux spells indexed colors as `colour208`; ratatui only accepts `208`.
+        assert_eq!(parse_color("colour208"), Ok(Color::Indexed(208)));
+        assert_eq!(parse_color("color208"), Ok(Color::Indexed(208)));
+        assert_eq!(parse_color("208"), Ok(Color::Indexed(208)));
+    }
+
+    #[test]
+    fn rejects_invalid_color() {
+        let result = Cli::try_parse_from(["tmux-expose", "--selected-color", "not-a-color"]);
+
+        assert!(result.is_err());
+        // `colour` prefix with a non-numeric / out-of-range suffix is still invalid.
+        assert!(parse_color("colourize").is_err());
+        assert!(parse_color("colour999").is_err());
     }
 }
