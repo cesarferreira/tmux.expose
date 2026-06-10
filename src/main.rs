@@ -53,7 +53,10 @@ fn parse_color(value: &str) -> Result<Color, String> {
         return Ok(Color::Indexed(index));
     }
 
-    Err(format!("invalid color: {value}"))
+    Err(format!(
+        "invalid color {value:?}; expected a name (e.g. `yellow`), \
+         an index (`208` or `colour208`), or a hex value (`#rrggbb`)"
+    ))
 }
 
 struct TerminalGuard;
@@ -94,14 +97,15 @@ fn main() -> Result<()> {
         }
     };
 
+    let mut colors = ui::CardColors::default();
     if let Some(color) = cli.selected_color {
-        app.colors.selected = color;
+        colors.selected = color;
     }
     if let Some(color) = cli.attached_color {
-        app.colors.attached = color;
+        colors.attached = color;
     }
     if let Some(color) = cli.inactive_color {
-        app.colors.inactive = color;
+        colors.inactive = color;
     }
 
     let _guard = TerminalGuard::enter()?;
@@ -116,7 +120,8 @@ fn main() -> Result<()> {
 
     loop {
         let forced_columns = cli.columns.map(usize::from);
-        terminal.draw(|frame| ui::render(frame, &app, cli.thumbnail_width, forced_columns))?;
+        terminal
+            .draw(|frame| ui::render(frame, &app, colors, cli.thumbnail_width, forced_columns))?;
 
         if app.should_quit {
             break;

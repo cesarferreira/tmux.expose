@@ -6,12 +6,33 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
 };
 
-use crate::model::{App, CardColors, Session};
+use crate::model::{App, Session};
 
 pub const MIN_CARD_WIDTH: u16 = 32;
 pub const MIN_CARD_HEIGHT: u16 = 10;
 const CARD_GAP: u16 = 2;
 const FOOTER_HEIGHT: u16 = 1;
+
+/// Colors used to highlight session cards by state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CardColors {
+    /// The currently selected card (title + border).
+    pub selected: Color,
+    /// The session you are currently attached to (title + border).
+    pub attached: Color,
+    /// Every other card (title only; the border stays dimmed).
+    pub inactive: Color,
+}
+
+impl Default for CardColors {
+    fn default() -> Self {
+        Self {
+            selected: Color::Yellow,
+            attached: Color::Green,
+            inactive: Color::White,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GridLayout {
@@ -23,6 +44,7 @@ pub struct GridLayout {
 pub fn render(
     frame: &mut Frame<'_>,
     app: &App,
+    colors: CardColors,
     min_card_width: Option<u16>,
     forced_columns: Option<usize>,
 ) {
@@ -50,7 +72,14 @@ pub fn render(
     } else if app.visible_session_count() == 0 {
         render_centered_message(frame, chunks[0], "No matching sessions");
     } else {
-        render_grid(frame, app, chunks[0], min_card_width, forced_columns);
+        render_grid(
+            frame,
+            app,
+            colors,
+            chunks[0],
+            min_card_width,
+            forced_columns,
+        );
     }
 
     let footer = Paragraph::new(footer_hint_line(app.search_text()));
@@ -60,6 +89,7 @@ pub fn render(
 pub fn render_grid(
     frame: &mut Frame<'_>,
     app: &App,
+    colors: CardColors,
     area: Rect,
     min_card_width: Option<u16>,
     forced_columns: Option<usize>,
@@ -76,7 +106,7 @@ pub fn render_grid(
                 session,
                 index == app.selected_index,
                 current_attached,
-                app.colors,
+                colors,
                 *card_area,
             );
         }
