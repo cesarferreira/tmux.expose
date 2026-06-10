@@ -18,6 +18,8 @@ pub struct App {
     pub should_quit: bool,
     pub should_switch: bool,
     pub error: Option<String>,
+    /// When true, the picker uses modal vim navigation (hjkl to move, `/` to search).
+    pub vim_keys: bool,
     search_query: Option<String>,
 }
 
@@ -35,6 +37,7 @@ impl App {
             should_quit: false,
             should_switch: false,
             error: None,
+            vim_keys: false,
             search_query: None,
         }
     }

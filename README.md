@@ -84,6 +84,7 @@ set -g @tmux-expose-border-style 'fg=colour245'
 set -g @tmux-expose-selected-color 'yellow'
 set -g @tmux-expose-attached-color 'green'
 set -g @tmux-expose-inactive-color 'white'
+set -g @tmux-expose-vim-keys 'on'
 set -g @tmux-expose-command 'tmux-expose --columns 2'
 
 set -g @plugin 'cesarferreira/tmux.expose'
@@ -123,6 +124,23 @@ The same colors are also available as CLI flags when running the binary directly
 ```bash
 tmux-expose --selected-color '#bd93f9' --attached-color '#50fa7b' --inactive-color '#6272a4'
 ```
+
+### Vim navigation
+
+Set `@tmux-expose-vim-keys 'on'` (or run `tmux-expose --vim`) to switch the picker to modal
+vim keys. It is off by default, leaving the standard type-to-filter behavior unchanged.
+
+When enabled, the picker starts in **normal** mode:
+
+| Key | Action |
+|---|---|
+| `h` `j` `k` `l` (or arrows) | Move the selection |
+| `/` | Enter search mode |
+| `Enter` | Switch to the selected session |
+| `q` / `Esc` | Quit |
+
+Pressing `/` enters **search** mode, where typing fuzzy-filters as usual (so `h/j/k/l`
+become text again); `Esc` returns to normal mode and `Enter` switches.
 
 ## Custom Example
 
@@ -204,6 +222,8 @@ tmux-expose --selected-color cyan --attached-color green --inactive-color white
 | `Esc` while searching | Clear search |
 | `Enter` | Switch to selected session |
 | `Esc` / `Ctrl-C` | Quit without switching |
+
+Prefer vim keys? See [Vim navigation](#vim-navigation) for an opt-in `hjkl` mode.
 
 <a id="tmux-plugin"></a>
 

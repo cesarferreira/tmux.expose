@@ -25,6 +25,7 @@ if [[ "$1" == "show-option" ]]; then
     @tmux-expose-selected-color) printf '%s' "${TMUX_EXPOSE_TEST_SELECTED_COLOR:-}" ;;
     @tmux-expose-attached-color) printf '%s' "${TMUX_EXPOSE_TEST_ATTACHED_COLOR:-}" ;;
     @tmux-expose-inactive-color) printf '%s' "${TMUX_EXPOSE_TEST_INACTIVE_COLOR:-}" ;;
+    @tmux-expose-vim-keys) printf '%s' "${TMUX_EXPOSE_TEST_VIM_KEYS:-}" ;;
     @tmux-expose-command) printf '%s' "${TMUX_EXPOSE_TEST_COMMAND:-}" ;;
   esac
   exit 0
@@ -45,6 +46,7 @@ FAKE_TMUX
     TMUX_EXPOSE_TEST_SELECTED_COLOR="${TMUX_EXPOSE_TEST_SELECTED_COLOR:-}" \
     TMUX_EXPOSE_TEST_ATTACHED_COLOR="${TMUX_EXPOSE_TEST_ATTACHED_COLOR:-}" \
     TMUX_EXPOSE_TEST_INACTIVE_COLOR="${TMUX_EXPOSE_TEST_INACTIVE_COLOR:-}" \
+    TMUX_EXPOSE_TEST_VIM_KEYS="${TMUX_EXPOSE_TEST_VIM_KEYS:-}" \
     TMUX_EXPOSE_TEST_COMMAND="${TMUX_EXPOSE_TEST_COMMAND:-}" \
     PATH="${tmpdir}:${PATH}" \
     bash "${repo_root}/tmux.expose.tmux"
@@ -105,3 +107,12 @@ assert_equals \
 assert_equals \
   'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --selected-color\ \\#ff8700 ' \
   "$(TMUX_EXPOSE_TEST_SELECTED_COLOR='#ff8700' run_plugin)"
+
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --vim ' \
+  "$(TMUX_EXPOSE_TEST_VIM_KEYS=on run_plugin)"
+
+# An "off"/unset value must not append the flag.
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose ' \
+  "$(TMUX_EXPOSE_TEST_VIM_KEYS=off run_plugin)"
