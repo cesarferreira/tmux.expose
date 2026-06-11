@@ -12,6 +12,7 @@ border_style="$(tmux show-option -gqv @tmux-expose-border-style)"
 selected_color="$(tmux show-option -gqv @tmux-expose-selected-color)"
 attached_color="$(tmux show-option -gqv @tmux-expose-attached-color)"
 inactive_color="$(tmux show-option -gqv @tmux-expose-inactive-color)"
+vim_keys="$(tmux show-option -gqv @tmux-expose-vim-keys)"
 command="$(tmux show-option -gqv @tmux-expose-command)"
 
 if [[ -z "${key}" ]]; then
@@ -40,6 +41,10 @@ fi
 if [[ -n "${inactive_color}" ]]; then
   command="${command} --inactive-color $(printf '%q' "${inactive_color}")"
 fi
+
+case "$(printf '%s' "${vim_keys}" | tr '[:upper:]' '[:lower:]')" in
+  on|true|1|yes) command="${command} --vim" ;;
+esac
 
 position_args=()
 case "${anchor}" in
