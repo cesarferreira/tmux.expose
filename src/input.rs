@@ -55,8 +55,15 @@ pub fn handle_key_with_toggle(
     }
 
     if toggle_key.is_some_and(|toggle_key| toggle_key.matches(key)) {
-        app.should_quit = true;
-        return;
+        // A typeable toggle key — e.g. `e`/`E` from a `prefix + e` binding — must
+        // stay usable as filter input while searching, so only close on it when a
+        // query is not being entered. A modified toggle (e.g. M-e) can't be typed
+        // into the filter, so it still closes from anywhere.
+        let typeable_during_search = app.is_searching() && is_typeable_filter_key(key);
+        if !typeable_during_search {
+            app.should_quit = true;
+            return;
+        }
     }
 
     if app.is_searching() {
@@ -108,6 +115,14 @@ fn contains(area: Rect, x: u16, y: u16) -> bool {
         && x < area.x.saturating_add(area.width)
         && y >= area.y
         && y < area.y.saturating_add(area.height)
+}
+
+/// Keys the search filter accepts as text input — matching the `Char` arm in
+/// `handle_search_key`. Uppercase keys arrive with `SHIFT`, so both lower- and
+/// uppercase configured toggle keys count as typeable.
+fn is_typeable_filter_key(key: KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Char(_))
+        && matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT)
 }
 
 fn handle_search_key(app: &mut App, key: KeyEvent, columns: usize) {
@@ -260,11 +275,46 @@ mod tests {
     }
 
     #[test]
-    fn configured_plain_key_marks_app_for_exit_while_searching() {
-        let mut app = App::new(vec![session("one")], None);
+    fn plain_toggle_key_is_typeable_while_searching() {
+        let mut app = App::new(vec![session("session")], None);
         let toggle_key = ToggleKey::from_tmux_key("s");
         app.start_search();
-        app.push_search_char('o');
+        app.push_search_char('e');
+
+        // `s` is the toggle key, but while searching it must filter, not quit.
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE),
+            1,
+            toggle_key,
+        );
+
+        assert!(!app.should_quit);
+        assert_eq!(app.search_text(), Some("es"));
+    }
+
+    #[test]
+    fn uppercase_toggle_key_is_typeable_while_searching() {
+        let mut app = App::new(vec![session("Editor")], None);
+        // `@tmux-expose-key 'E'` yields a toggle of Char('E') + SHIFT.
+        let toggle_key = ToggleKey::from_tmux_key("E");
+        app.start_search();
+
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('E'), KeyModifiers::SHIFT),
+            1,
+            toggle_key,
+        );
+
+        assert!(!app.should_quit);
+        assert_eq!(app.search_text(), Some("E"));
+    }
+
+    #[test]
+    fn plain_toggle_key_still_quits_when_not_searching() {
+        let mut app = App::new(vec![session("one")], None);
+        let toggle_key = ToggleKey::from_tmux_key("s");
 
         handle_key_with_toggle(
             &mut app,
@@ -274,7 +324,24 @@ mod tests {
         );
 
         assert!(app.should_quit);
-        assert!(!app.should_switch);
+    }
+
+    #[test]
+    fn modified_toggle_key_still_quits_while_searching() {
+        let mut app = App::new(vec![session("one")], None);
+        let toggle_key = ToggleKey::from_tmux_key("M-e");
+        app.start_search();
+        app.push_search_char('o');
+
+        // A modified chord can't be typed into the filter, so it still closes.
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('e'), KeyModifiers::ALT),
+            1,
+            toggle_key,
+        );
+
+        assert!(app.should_quit);
     }
 
     #[test]
