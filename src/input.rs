@@ -332,6 +332,20 @@ mod tests {
     }
 
     #[test]
+    fn vim_ctrl_c_still_quits() {
+        // Ctrl-C is handled before the mode dispatch, so it works in vim mode too.
+        let mut app = vim_app(&["one"]);
+
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+            1,
+        );
+
+        assert!(app.should_quit);
+    }
+
+    #[test]
     fn q_filters_instead_of_quitting() {
         let mut app = App::new(vec![session("queue")], None);
 

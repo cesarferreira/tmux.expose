@@ -142,6 +142,11 @@ When enabled, the picker starts in **normal** mode:
 Pressing `/` enters **search** mode, where typing fuzzy-filters as usual (so `h/j/k/l`
 become text again); `Esc` returns to normal mode and `Enter` switches.
 
+> **Note:** `@tmux-expose-vim-keys` works by appending `--vim` to `@tmux-expose-command`
+> (which defaults to `tmux-expose`). If you point `@tmux-expose-command` at a custom wrapper
+> script, make sure it accepts `--vim` — or set the flag there yourself instead. The
+> `@tmux-expose-*-color` options behave the same way.
+
 ## Custom Example
 
 This configuration binds tmux.expose to `prefix + s` and opens it as a bottom-anchored popup
