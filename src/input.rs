@@ -55,11 +55,12 @@ pub fn handle_key_with_toggle(
     }
 
     if toggle_key.is_some_and(|toggle_key| toggle_key.matches(key)) {
-        // A plain (unmodified) toggle key — e.g. `e` from a `prefix + e` binding —
-        // must stay typeable while searching, so only close on it when a query is
-        // not being entered. A modified toggle (e.g. M-e) can't be typed into the
-        // filter, so it still closes from anywhere.
-        if !(app.is_searching() && key.modifiers == KeyModifiers::NONE) {
+        // A typeable toggle key — e.g. `e`/`E` from a `prefix + e` binding — must
+        // stay usable as filter input while searching, so only close on it when a
+        // query is not being entered. A modified toggle (e.g. M-e) can't be typed
+        // into the filter, so it still closes from anywhere.
+        let typeable_during_search = app.is_searching() && is_typeable_filter_key(key);
+        if !typeable_during_search {
             app.should_quit = true;
             return;
         }
@@ -114,6 +115,14 @@ fn contains(area: Rect, x: u16, y: u16) -> bool {
         && x < area.x.saturating_add(area.width)
         && y >= area.y
         && y < area.y.saturating_add(area.height)
+}
+
+/// Keys the search filter accepts as text input — matching the `Char` arm in
+/// `handle_search_key`. Uppercase keys arrive with `SHIFT`, so both lower- and
+/// uppercase configured toggle keys count as typeable.
+fn is_typeable_filter_key(key: KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Char(_))
+        && matches!(key.modifiers, KeyModifiers::NONE | KeyModifiers::SHIFT)
 }
 
 fn handle_search_key(app: &mut App, key: KeyEvent, columns: usize) {
@@ -282,6 +291,24 @@ mod tests {
 
         assert!(!app.should_quit);
         assert_eq!(app.search_text(), Some("es"));
+    }
+
+    #[test]
+    fn uppercase_toggle_key_is_typeable_while_searching() {
+        let mut app = App::new(vec![session("Editor")], None);
+        // `@tmux-expose-key 'E'` yields a toggle of Char('E') + SHIFT.
+        let toggle_key = ToggleKey::from_tmux_key("E");
+        app.start_search();
+
+        handle_key_with_toggle(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('E'), KeyModifiers::SHIFT),
+            1,
+            toggle_key,
+        );
+
+        assert!(!app.should_quit);
+        assert_eq!(app.search_text(), Some("E"));
     }
 
     #[test]
