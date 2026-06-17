@@ -36,6 +36,10 @@ struct Cli {
 
     #[arg(long, value_name = "COLOR", value_parser = parse_color)]
     inactive_color: Option<Color>,
+
+    /// Use modal vim navigation: hjkl to move, `/` to search, q/Esc to quit.
+    #[arg(long)]
+    vim: bool,
 }
 
 fn parse_color(value: &str) -> Result<Color, String> {
@@ -96,6 +100,7 @@ fn main() -> Result<()> {
             app
         }
     };
+    app.vim_keys = cli.vim;
 
     let mut colors = ui::CardColors::default();
     if let Some(color) = cli.selected_color {
@@ -301,5 +306,19 @@ mod tests {
         // `colour` prefix with a non-numeric / out-of-range suffix is still invalid.
         assert!(parse_color("colourize").is_err());
         assert!(parse_color("colour999").is_err());
+    }
+
+    #[test]
+    fn vim_defaults_to_off() {
+        let cli = Cli::parse_from(["tmux-expose"]);
+
+        assert!(!cli.vim);
+    }
+
+    #[test]
+    fn parses_vim_flag() {
+        let cli = Cli::parse_from(["tmux-expose", "--vim"]);
+
+        assert!(cli.vim);
     }
 }
