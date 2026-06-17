@@ -1,6 +1,6 @@
 [package]
 name = "tmux-expose"
-version = "0.5.3"
+version = "0.6.0"
 edition = "2024"
 description = "Mission Control-style tmux session switcher with live terminal previews"
 license = "MIT"
