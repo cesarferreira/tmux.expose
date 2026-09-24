@@ -192,6 +192,12 @@ own `.claude/settings.json`:
     "Stop": [
       { "hooks": [{ "type": "command", "command": "tmux-expose agent-status waiting" }] }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [{ "type": "command", "command": "tmux-expose agent-status working" }]
+      }
+    ],
     "Notification": [
       {
         "matcher": "permission_prompt",
