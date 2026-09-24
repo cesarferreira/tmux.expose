@@ -145,7 +145,8 @@ it's idle on you. `attention` means it's blocked on something stronger, like a p
 prompt. A session's card takes the *worst* status across all of its panes (`attention` >
 `waiting` > `working`), so a multi-agent session never hides a stuck pane behind a busy
 one — and by default, sessions with a waiting or blocked agent sort to the top of the
-grid, oldest-waiting first.
+grid, oldest-waiting first, and the cursor starts on the top one instead of your current
+session.
 
 A single tracked pane gets a plain label on the card's bottom border:
 
@@ -236,6 +237,34 @@ set -g @tmux-expose-agent-sort 'on'
 
 Also available as CLI flags: `--attention-color`, `--waiting-color`, `--working-color`,
 `--no-agent-sort`.
+
+#### Jump to the next agent
+
+To triage without opening the picker, bind a key to `tmux-expose next`. Each press
+switches to the next session whose agent is blocked on or waiting for you, in the same
+priority order as the grid, and wraps around, so repeated presses visit every one of them
+instead of bouncing between the two oldest. If nothing else needs you, it shows a brief
+message and stays put.
+
+| Option | Description | Default |
+|---|---|---|
+| `@tmux-expose-next-key` | Key that jumps to the next agent session | unbound |
+| `@tmux-expose-next-key-table` | Key table for that key | `prefix` |
+| `@tmux-expose-binary` | Executable `next` runs, if different from the picker | derived from `@tmux-expose-command` |
+
+```tmux
+set -g @tmux-expose-next-key 'N'   # <prefix> N
+```
+
+`next` normally reuses the executable named in `@tmux-expose-command`. If that value quotes
+a path containing a space (e.g. `'/opt/my tools/tmux-expose' --columns 2`), set
+`@tmux-expose-binary` explicitly rather than relying on it being parsed out:
+
+```tmux
+set -g @tmux-expose-binary '/opt/my tools/tmux-expose'
+```
+
+From a shell inside tmux you can also run `tmux-expose next` directly.
 
 ### Vim navigation
 

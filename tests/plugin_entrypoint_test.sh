@@ -27,11 +27,14 @@ if [[ "$1" == "show-option" ]]; then
     @tmux-expose-inactive-color) printf '%s' "${TMUX_EXPOSE_TEST_INACTIVE_COLOR:-}" ;;
     @tmux-expose-vim-keys) printf '%s' "${TMUX_EXPOSE_TEST_VIM_KEYS:-}" ;;
     @tmux-expose-command) printf '%s' "${TMUX_EXPOSE_TEST_COMMAND:-}" ;;
+    @tmux-expose-next-key) printf '%s' "${TMUX_EXPOSE_TEST_NEXT_KEY:-}" ;;
+    @tmux-expose-next-key-table) printf '%s' "${TMUX_EXPOSE_TEST_NEXT_KEY_TABLE:-}" ;;
+    @tmux-expose-binary) printf '%s' "${TMUX_EXPOSE_TEST_BINARY:-}" ;;
   esac
   exit 0
 fi
 
-printf '%q ' "$@" >"${TMUX_EXPOSE_TEST_OUTPUT}"
+printf '%q ' "$@" >>"${TMUX_EXPOSE_TEST_OUTPUT}"
 FAKE_TMUX
   chmod +x "${tmpdir}/tmux"
 
@@ -48,6 +51,9 @@ FAKE_TMUX
     TMUX_EXPOSE_TEST_INACTIVE_COLOR="${TMUX_EXPOSE_TEST_INACTIVE_COLOR:-}" \
     TMUX_EXPOSE_TEST_VIM_KEYS="${TMUX_EXPOSE_TEST_VIM_KEYS:-}" \
     TMUX_EXPOSE_TEST_COMMAND="${TMUX_EXPOSE_TEST_COMMAND:-}" \
+    TMUX_EXPOSE_TEST_NEXT_KEY="${TMUX_EXPOSE_TEST_NEXT_KEY:-}" \
+    TMUX_EXPOSE_TEST_NEXT_KEY_TABLE="${TMUX_EXPOSE_TEST_NEXT_KEY_TABLE:-}" \
+    TMUX_EXPOSE_TEST_BINARY="${TMUX_EXPOSE_TEST_BINARY:-}" \
     PATH="${tmpdir}:${PATH}" \
     bash "${repo_root}/tmux.expose.tmux"
   tr -d '\n' <"${tmpdir}/output"
@@ -116,3 +122,28 @@ assert_equals \
 assert_equals \
   'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose ' \
   "$(TMUX_EXPOSE_TEST_VIM_KEYS=off run_plugin)"
+
+
+# The next-session key binds run-shell to the bare program from
+# @tmux-expose-command, never the picker's flags. #{q:...} is tmux's own
+# shell-quoting modifier, so a client/session name with special characters
+# can't break out of the generated command.
+assert_equals \
+  "bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose\ --vim bind-key -T prefix N run-shell tmux-expose\ next\ #\{q:session_id\}\ #\{q:client_name\} " \
+  "$(TMUX_EXPOSE_TEST_NEXT_KEY=N TMUX_EXPOSE_TEST_VIM_KEYS=on run_plugin)"
+
+assert_equals \
+  "bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E /opt/bin/tmux-expose\ --columns\ 2 bind-key -T root M-n run-shell /opt/bin/tmux-expose\ next\ #\{q:session_id\}\ #\{q:client_name\} " \
+  "$(TMUX_EXPOSE_TEST_NEXT_KEY=M-n TMUX_EXPOSE_TEST_NEXT_KEY_TABLE=root TMUX_EXPOSE_TEST_COMMAND='/opt/bin/tmux-expose --columns 2' run_plugin)"
+
+# @tmux-expose-binary overrides the derived executable outright.
+assert_equals \
+  "bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose bind-key -T prefix N run-shell my-custom-binary\ next\ #\{q:session_id\}\ #\{q:client_name\} " \
+  "$(TMUX_EXPOSE_TEST_NEXT_KEY=N TMUX_EXPOSE_TEST_BINARY=my-custom-binary run_plugin)"
+
+# @tmux-expose-binary itself may contain a space (the case the naive split on
+# @tmux-expose-command can't handle) -- it must come out shell-quoted so
+# run-shell treats it as one word instead of two.
+assert_equals \
+  'bind-key -T root M-e display-popup -w 100% -h 100% -e TMUX_EXPOSE_TOGGLE_KEY=M-e -E tmux-expose bind-key -T root M-n run-shell /opt/my\\\ tools/tmux-expose\ next\ #\{q:session_id\}\ #\{q:client_name\} ' \
+  "$(TMUX_EXPOSE_TEST_NEXT_KEY=M-n TMUX_EXPOSE_TEST_NEXT_KEY_TABLE=root TMUX_EXPOSE_TEST_BINARY='/opt/my tools/tmux-expose' run_plugin)"
