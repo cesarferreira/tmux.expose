@@ -167,6 +167,8 @@ fn handle_search_key(app: &mut App, key: KeyEvent, columns: usize) {
         (KeyCode::Esc, _) => app.clear_search(),
         (KeyCode::Enter, _) => app.should_switch = true,
         (KeyCode::Backspace, _) => app.pop_search_char(),
+        (KeyCode::Char('w'), KeyModifiers::CONTROL) => app.pop_search_word(),
+        (KeyCode::Char('u'), KeyModifiers::CONTROL) => app.clear_search_text(),
         (KeyCode::Left, _) => move_left(app, columns),
         (KeyCode::Right, _) => move_right(app, columns),
         (KeyCode::Up, _) => app.move_up(columns),
@@ -681,6 +683,41 @@ mod tests {
         handle_key(&mut app, key(KeyCode::Backspace), 1);
 
         assert_eq!(app.search_text(), Some(""));
+    }
+
+    fn type_query(app: &mut App, text: &str) {
+        for ch in text.chars() {
+            handle_key(app, key(KeyCode::Char(ch)), 1);
+        }
+    }
+
+    #[test]
+    fn ctrl_w_deletes_previous_word_from_search_query() {
+        let mut app = App::new(vec![session("frontend")], None);
+
+        type_query(&mut app, "api dev ");
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL),
+            1,
+        );
+
+        assert_eq!(app.search_text(), Some("api "));
+    }
+
+    #[test]
+    fn ctrl_u_clears_search_query_but_keeps_searching() {
+        let mut app = App::new(vec![session("frontend")], None);
+
+        type_query(&mut app, "api dev");
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            1,
+        );
+
+        assert_eq!(app.search_text(), Some(""));
+        assert!(app.is_searching());
     }
 
     #[test]

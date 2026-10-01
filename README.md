@@ -340,6 +340,8 @@ tmux-expose --selected-color cyan --attached-color green --inactive-color white
 | `Arrow keys` | Move selection |
 | `Mouse click` | Switch to clicked session |
 | `Backspace` | Edit search query |
+| `Ctrl-W` | Delete the previous word of the search query |
+| `Ctrl-U` | Clear the search query (keeps searching) |
 | `Esc` while searching | Clear search |
 | `Enter` | Switch to selected session |
 | `Esc` / `Ctrl-C` | Quit without switching |

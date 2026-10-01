@@ -135,6 +135,26 @@ impl App {
         }
     }
 
+    /// Deletes the word before the end of the query, like readline's Ctrl-W:
+    /// trailing whitespace first, then the word itself.
+    pub fn pop_search_word(&mut self) {
+        if let Some(query) = &mut self.search_query {
+            let kept = query
+                .trim_end()
+                .trim_end_matches(|ch: char| !ch.is_whitespace());
+            query.truncate(kept.len());
+            self.selected_index = 0;
+        }
+    }
+
+    /// Empties the query but stays in search, like readline's Ctrl-U.
+    pub fn clear_search_text(&mut self) {
+        if let Some(query) = &mut self.search_query {
+            query.clear();
+            self.selected_index = 0;
+        }
+    }
+
     pub fn clear_search(&mut self) {
         self.search_query = None;
         self.editing_search = false;
