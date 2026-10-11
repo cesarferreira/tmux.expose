@@ -141,6 +141,32 @@ fn run_agent_status(status: &str) -> Result<()> {
     Ok(())
 }
 
+/// Headless triage: jumps straight to the next session whose agent is
+/// blocked on or waiting for you (see `model::next_urgent_session`), without
+/// opening the picker. Like `agent-status`, deliberately not a clap
+/// subcommand, so it never touches the picker's flags.
+///
+/// Usage: `tmux-expose next [SESSION_ID [CLIENT]]`. The plugin's key binding
+/// passes `#{session_id}` and `#{client_name}`, because `run-shell` isn't
+/// attached to a client and tmux would otherwise guess which one you meant.
+/// Run from a shell inside a pane, both can be omitted.
+fn run_next(session_id: Option<String>, client: Option<String>) -> Result<()> {
+    let session_id = match session_id.filter(|id| !id.is_empty()) {
+        Some(id) => Some(id),
+        None => tmux::current_session_id().unwrap_or(None),
+    };
+    let client = client.filter(|client| !client.is_empty());
+
+    let sessions = tmux::list_sessions_without_previews()?;
+    match model::next_urgent_session(&sessions, session_id.as_deref()) {
+        Some(session) => tmux::switch_client_for(client.as_deref(), &session.id),
+        None => tmux::display_message(
+            client.as_deref(),
+            "tmux-expose: no other agents waiting on you",
+        ),
+    }
+}
+
 fn validate_agent_status_word(status: &str) -> Result<()> {
     if status == "clear" || AgentStatus::parse(status).is_some() {
         return Ok(());
@@ -165,8 +191,10 @@ fn clear_pane_option(pane: &str, option: &str) {
 fn main() -> Result<()> {
     let mut raw_args = env::args();
     raw_args.next(); // program name
-    if raw_args.next().as_deref() == Some("agent-status") {
-        return run_agent_status(&raw_args.next().unwrap_or_default());
+    match raw_args.next().as_deref() {
+        Some("agent-status") => return run_agent_status(&raw_args.next().unwrap_or_default()),
+        Some("next") => return run_next(raw_args.next(), raw_args.next()),
+        _ => {}
     }
 
     let cli = Cli::parse();
@@ -177,9 +205,16 @@ fn main() -> Result<()> {
     let mut app = match tmux::list_sessions() {
         Ok(mut sessions) => {
             if agent_sort {
-                model::sort_sessions_by_agent_status(&mut sessions);
+                model::sort_sessions_by_agent_status_with_current(
+                    &mut sessions,
+                    current_session_name.as_deref(),
+                );
             }
-            App::new(sessions, current_session_name)
+            let mut app = App::new(sessions, current_session_name);
+            if agent_sort {
+                app.select_most_urgent_agent_session();
+            }
+            app
         }
         Err(error) => {
             let mut app = App::new(Vec::new(), current_session_name);
@@ -280,7 +315,10 @@ fn main() -> Result<()> {
             match tmux::list_sessions_skipping_preview_for(current_session_id.as_deref()) {
                 Ok(mut sessions) => {
                     if agent_sort {
-                        model::sort_sessions_by_agent_status(&mut sessions);
+                        model::sort_sessions_by_agent_status_with_current(
+                            &mut sessions,
+                            app.current_session_name.as_deref(),
+                        );
                     }
                     app.replace_sessions_preserving_preview_for(
                         sessions,

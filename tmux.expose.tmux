@@ -18,6 +18,9 @@ working_color="$(tmux show-option -gqv @tmux-expose-working-color)"
 agent_sort="$(tmux show-option -gqv @tmux-expose-agent-sort)"
 vim_keys="$(tmux show-option -gqv @tmux-expose-vim-keys)"
 command="$(tmux show-option -gqv @tmux-expose-command)"
+next_key="$(tmux show-option -gqv @tmux-expose-next-key)"
+next_key_table="$(tmux show-option -gqv @tmux-expose-next-key-table)"
+next_binary="$(tmux show-option -gqv @tmux-expose-binary)"
 
 if [[ -z "${key}" ]]; then
   key="M-e"
@@ -30,6 +33,24 @@ width="${width:-100%}"
 height="${height:-100%}"
 anchor="${anchor:-center}"
 command="${command:-tmux-expose}"
+next_key_table="${next_key_table:-prefix}"
+
+# `next` is a headless subcommand of the same binary, so take just the
+# program from @tmux-expose-command by default. This is a plain split on the
+# first space -- never `eval`, which would execute anything else in that
+# string ($(...), ;, &&, a pipeline) as a side effect of plugin startup. The
+# tradeoff is that it can't handle a quoted executable path that itself
+# contains a space (e.g. '/opt/my tools/tmux-expose' --columns 2); set
+# @tmux-expose-binary explicitly in that case rather than relying on this to
+# parse it out.
+next_binary="${next_binary:-${command%% *}}"
+
+# run-shell isn't attached to a client, so pass the pressing client's session
+# and name explicitly. #{q:...} asks tmux to shell-quote the expanded value
+# itself, so a session/client name containing quotes or shell metacharacters
+# can't break out of the generated command. next_binary is shell-escaped for
+# the same reason -- @tmux-expose-binary may itself contain a space.
+next_command="$(printf '%q' "${next_binary}") next #{q:session_id} #{q:client_name}"
 
 # Shell-escape color values before splicing them into the -E command string.
 # tmux runs that string through the shell, where an unquoted hex value such as
@@ -90,3 +111,8 @@ if [[ -n "${border_style}" ]]; then
 fi
 
 tmux bind-key -T "${key_table}" "${key}" display-popup -w "${width}" -h "${height}" "${position_args[@]}" "${style_args[@]}" -e "TMUX_EXPOSE_TOGGLE_KEY=${key}" -E "${command}"
+
+# Unbound unless @tmux-expose-next-key is set, so upgrading never takes over a key.
+if [[ -n "${next_key}" ]]; then
+  tmux bind-key -T "${next_key_table}" "${next_key}" run-shell "${next_command}"
+fi

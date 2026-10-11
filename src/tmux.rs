@@ -17,20 +17,7 @@ pub fn list_sessions() -> Result<Vec<Session>> {
 pub fn list_sessions_skipping_preview_for(
     current_session_id: Option<&str>,
 ) -> Result<Vec<Session>> {
-    let output = Command::new("tmux")
-        .args(["list-sessions", "-F", SESSION_FORMAT])
-        .output()
-        .context("failed to run tmux list-sessions")?;
-
-    if !output.status.success() {
-        return Err(tmux_error("tmux list-sessions failed", &output.stderr));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut sessions = parse_sessions_output(&stdout)?;
-
-    let agent_rows = list_pane_agent_rows();
-    apply_agent_status(&mut sessions, &agent_rows);
+    let mut sessions = list_sessions_without_previews()?;
 
     for session in &mut sessions {
         session.current_window = current_window_name(&session.id).unwrap_or(None);
@@ -51,6 +38,28 @@ pub fn list_sessions_skipping_preview_for(
             }
         }
     }
+
+    Ok(sessions)
+}
+
+/// Sessions with agent status but no window names or pane captures — the
+/// cheap listing for headless commands like `tmux-expose next`, which run on
+/// a keypress and never draw a card.
+pub fn list_sessions_without_previews() -> Result<Vec<Session>> {
+    let output = Command::new("tmux")
+        .args(["list-sessions", "-F", SESSION_FORMAT])
+        .output()
+        .context("failed to run tmux list-sessions")?;
+
+    if !output.status.success() {
+        return Err(tmux_error("tmux list-sessions failed", &output.stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut sessions = parse_sessions_output(&stdout)?;
+
+    let agent_rows = list_pane_agent_rows();
+    apply_agent_status(&mut sessions, &agent_rows);
 
     Ok(sessions)
 }
@@ -116,13 +125,45 @@ pub fn capture_session_preview(session_target: &str, max_lines: usize) -> Result
 }
 
 pub fn switch_client(session_target: &str) -> Result<()> {
+    switch_client_for(None, session_target)
+}
+
+/// Like `switch_client`, but for a specific client. Commands run from a key
+/// binding via `run-shell` aren't attached to any client, so they have to
+/// name the one that pressed the key or tmux guesses.
+pub fn switch_client_for(client: Option<&str>, session_target: &str) -> Result<()> {
+    let mut args = vec!["switch-client"];
+    if let Some(client) = client {
+        args.extend(["-c", client]);
+    }
+    args.extend(["-t", session_target]);
+
     let status = Command::new("tmux")
-        .args(["switch-client", "-t", session_target])
+        .args(&args)
         .status()
         .with_context(|| format!("failed to switch to tmux session '{session_target}'"))?;
 
     if !status.success() {
         return Err(anyhow!("tmux switch-client failed for '{session_target}'"));
+    }
+
+    Ok(())
+}
+
+pub fn display_message(client: Option<&str>, message: &str) -> Result<()> {
+    let mut args = vec!["display-message"];
+    if let Some(client) = client {
+        args.extend(["-c", client]);
+    }
+    args.push(message);
+
+    let status = Command::new("tmux")
+        .args(&args)
+        .status()
+        .context("failed to run tmux display-message")?;
+
+    if !status.success() {
+        return Err(anyhow!("tmux display-message failed"));
     }
 
     Ok(())
